@@ -41,7 +41,7 @@ const LandingScreen: React.FC<Props> = ({navigation}) => {
         <Animatable.View animation="pulse" iterationCount="infinite">
           <TouchableOpacity
             style={styles.playButton}
-            onPress={() => navigation.navigate('Home')}>
+            onPress={() => navigation.navigate('Main')}>
             <Icon name="play" size={80} color="#FFFFFF" />
           </TouchableOpacity>
         </Animatable.View>

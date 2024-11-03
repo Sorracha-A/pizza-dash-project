@@ -1,4 +1,5 @@
 export type RootStackParamList = {
   Landing: undefined;
-  Home: undefined;
+  Main: undefined;
+  EditProfile: undefined;
 };

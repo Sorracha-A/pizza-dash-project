@@ -1,15 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const HomeScreen = () => {
+const OrderScreen: React.FC = () => {
   return (
     <View style={styles.container}>
-      <Text>Welcome to Pizza Dash!</Text>
+      <Text>This is the Order Screen</Text>
     </View>
   );
 };
 
-export default HomeScreen;
+export default OrderScreen;
 
 const styles = StyleSheet.create({
   container: {
