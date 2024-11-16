@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
+import {createStackNavigator, Header} from '@react-navigation/stack';
 
 import LandingScreen from '../screens/LandingScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -40,7 +40,15 @@ const TabNavigator = () => (
     })}>
     <Tab.Screen name="Dashboard" component={DashboardScreen} />
     <Tab.Screen name="Map" component={MapScreen} />
-    <Tab.Screen name="Order" component={OrderScreen} />
+    <Tab.Screen
+      name="Order"
+      component={OrderScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Order',
+        headerTitleAlign: 'center',
+      }}
+    />
   </Tab.Navigator>
 );
 
@@ -52,8 +60,7 @@ const AppNavigator = () => (
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="PizzaMakingGame" component={PizzaMakingGame} />
-      
+      <Stack.Screen name="PizzaMakingGame" component={PizzaMakingGame} options={{headerShown: true}}/>
     </Stack.Navigator>
   </NavigationContainer>
 );

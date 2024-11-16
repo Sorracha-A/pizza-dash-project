@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   SafeAreaView,
   View,
@@ -10,46 +10,39 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import {TabView, SceneMap, TabBar} from 'react-native-tab-view';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import moment from 'moment';
-
-const { width } = Dimensions.get('window');
-
-type Order = {
-  id: string;
-  customerName: string;
-  customerAvatar: string;
-  items: Array<{ name: string; quantity: number }>;
-  total: number;
-  deliveryFee: number;
-  tip: number;
-  date: string;
-  status: 'incoming' | 'active' | 'past';
-};
+import {useOrderStore, Order} from '../store/useOrderStore';
+const {width} = Dimensions.get('window');
 
 const OrderScreen: React.FC = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
-    { key: 'incoming', title: 'Incoming Orders' },
-    { key: 'active', title: 'Active Orders' },
-    { key: 'past', title: 'Past Orders' },
+    {key: 'incoming', title: 'Incoming Orders'},
+    {key: 'active', title: 'Active Orders'},
+    {key: 'past', title: 'Past Orders'},
   ]);
 
-  const [incomingOrders, setIncomingOrders] = useState<Order[]>([]);
-  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
-  const [pastOrders, setPastOrders] = useState<Order[]>([]);
+  const {
+    incomingOrders,
+    activeOrders,
+    pastOrders,
+    addActiveOrder,
+    removeIncomingOrder,
+    setOrderStatus,
+  } = useOrderStore();
 
-  const incomingOrdersRef = useRef<Order[]>(incomingOrders);
-  incomingOrdersRef.current = incomingOrders;
-
-  const activeOrdersRef = useRef<Order[]>(activeOrders);
-  activeOrdersRef.current = activeOrders;
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
 
   useEffect(() => {
     const generateRandomOrder = () => {
-      if (incomingOrdersRef.current.length >= 5 ) return;
-      if (activeOrdersRef.current.length >= 3) return;
+      if (
+        !isAcceptingOrders ||
+        incomingOrders.length >= 5 ||
+        activeOrders.length >= 3
+      )
+        return;
 
       const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
@@ -57,8 +50,8 @@ const OrderScreen: React.FC = () => {
         customerAvatar:
           'https://i.pravatar.cc/150?img=' + Math.floor(Math.random() * 70 + 1),
         items: [
-          { name: 'Margherita Pizza', quantity: 1 },
-          { name: 'Pepperoni Pizza', quantity: 2 },
+          {name: 'Margherita Pizza', quantity: 1},
+          {name: 'Pepperoni Pizza', quantity: 2},
         ],
         total: parseFloat((Math.random() * 50 + 10).toFixed(2)),
         deliveryFee: 5.0,
@@ -67,50 +60,55 @@ const OrderScreen: React.FC = () => {
         status: 'incoming',
       };
 
-      setIncomingOrders((prevOrders) => [...prevOrders, newOrder]);
+      // Add the new order to incomingOrders using Zustand's state update function
+      useOrderStore.setState(state => ({
+        incomingOrders: [...state.incomingOrders, newOrder],
+      }));
 
-      // Automatically remove the order if not accepted or declined within 3 minutes
+      // Set a timeout to remove the order if not accepted within 3 minutes
       setTimeout(() => {
-        setIncomingOrders((orders) =>
-          orders.filter((order) => order.id !== newOrder.id),
-        );
+        useOrderStore.getState().removeIncomingOrder(newOrder.id);
       }, 3 * 60 * 1000); // 3 minutes
     };
 
-    
-    
-
-    // Generate a random order at random intervals between 1 to 5 minutes
-    const interval = setInterval(() => {
-      generateRandomOrder();
-    }, Math.floor(Math.random() * 5 + 1) * 60 * 1000);
-
+    const interval = setInterval(
+      generateRandomOrder,
+      Math.floor(Math.random() * (10000-5000) + 5000),
+    );
     return () => clearInterval(interval);
-  }, []);
+  }, [isAcceptingOrders, incomingOrders.length, activeOrders.length]);
+
+  const toggleOrderAcceptance = () => {
+    setIsAcceptingOrders(prev => !prev);
+  };
 
   const acceptOrder = (order: Order) => {
-    if (activeOrdersRef.current.length >= 3) {
-      Alert.alert('Limit Reached', 'You cannot accept more than 3 active orders.');
+    if (activeOrders.length >= 3) {
+      Alert.alert(
+        'Limit Reached',
+        'You cannot accept more than 3 active orders.',
+      );
       return;
     }
-    setIncomingOrders((orders) => orders.filter((o) => o.id !== order.id));
-    setActiveOrders((orders) => [...orders, { ...order, status: 'active' }]);
+    addActiveOrder({...order, status: 'active'}); // Update status to 'active'
   };
 
-  const declineOrder = (order: Order) => {
-    setIncomingOrders((orders) => orders.filter((o) => o.id !== order.id));
+  const declineOrder = (orderId: string) => {
+    removeIncomingOrder(orderId);
   };
 
-  const completeOrder = (order: Order) => {
-    setActiveOrders((orders) => orders.filter((o) => o.id !== order.id));
-    setPastOrders((orders) => [...orders, { ...order, status: 'past' }]);
+  const completeOrder = (orderId: string) => {
+    setOrderStatus(orderId, 'past');
   };
 
   const renderOrderItem = (order: Order, isActiveOrder = false) => (
     <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
-        <Image source={{ uri: order.customerAvatar }} style={styles.customerAvatar} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
+        <Image
+          source={{uri: order.customerAvatar}}
+          style={styles.customerAvatar}
+        />
+        <View style={{flex: 1, marginLeft: 10}}>
           <Text style={styles.customerName}>{order.customerName}</Text>
           <Text style={styles.orderDate}>{order.date}</Text>
         </View>
@@ -132,24 +130,21 @@ const OrderScreen: React.FC = () => {
       {order.status === 'incoming' && (
         <View style={styles.orderActions}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#27ae60' }]}
-            onPress={() => acceptOrder(order)}
-          >
+            style={[styles.button, {backgroundColor: '#27ae60'}]}
+            onPress={() => acceptOrder(order)}>
             <Text style={styles.buttonText}>Accept</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#c0392b' }]}
-            onPress={() => declineOrder(order)}
-          >
+            style={[styles.button, {backgroundColor: '#c0392b'}]}
+            onPress={() => declineOrder(order.id)}>
             <Text style={styles.buttonText}>Decline</Text>
           </TouchableOpacity>
         </View>
       )}
       {isActiveOrder && (
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: '#2980b9', marginTop: 10 }]}
-          onPress={() => completeOrder(order)}
-        >
+          style={[styles.button, {backgroundColor: '#2980b9', marginTop: 10}]}
+          onPress={() => completeOrder(order.id)}>
           <Text style={styles.buttonText}>Complete Order</Text>
         </TouchableOpacity>
       )}
@@ -160,44 +155,68 @@ const OrderScreen: React.FC = () => {
     incoming: () => (
       <FlatList
         data={incomingOrders}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderOrderItem(item)}
+        keyExtractor={item => item.id}
+        renderItem={({item}) => renderOrderItem(item)}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No incoming orders.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No incoming orders.</Text>
+        }
       />
     ),
     active: () => (
       <FlatList
         data={activeOrders}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderOrderItem(item, true)}
+        keyExtractor={item => item.id}
+        renderItem={({item}) => renderOrderItem(item, true)}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No active orders.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No active orders.</Text>
+        }
       />
     ),
     past: () => (
       <FlatList
         data={pastOrders}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderOrderItem(item)}
+        keyExtractor={item => item.id}
+        renderItem={({item}) => renderOrderItem(item)}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No past orders.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No past orders.</Text>
+        }
       />
     ),
   });
 
   return (
-    <SafeAreaView style={{ flex: 1 , backgroundColor: 'white'}}>
+    <SafeAreaView style={{flex: 1, backgroundColor: 'white'}}>
+      <View style={styles.header}>
+        <Text
+          style={{
+            fontSize: 16,
+            color: isAcceptingOrders ? '#27ae60' : '#c0392b',
+          }}>
+          {isAcceptingOrders ? 'Accepting Orders' : 'Not Accepting Orders'}
+        </Text>
+        <TouchableOpacity
+          onPress={toggleOrderAcceptance}
+          style={styles.iconButton}>
+          <Icon
+            name={isAcceptingOrders ? 'pause' : 'play'}
+            size={24}
+            color={isAcceptingOrders ? '#E74C3C' : '#27ae60'}
+          />
+        </TouchableOpacity>
+      </View>
       <TabView
-        navigationState={{ index, routes }}
+        navigationState={{index, routes}}
         renderScene={renderScene}
         onIndexChange={setIndex}
-        initialLayout={{ width: width }}
-        renderTabBar={(props) => (
+        initialLayout={{width}}
+        renderTabBar={props => (
           <TabBar
             {...props}
-            indicatorStyle={{ backgroundColor: '#E74C3C' }}
-            style={{ backgroundColor: 'white' }}
+            indicatorStyle={{backgroundColor: '#E74C3C'}}
+            style={{backgroundColor: 'white'}}
             activeColor="#E74C3C"
             inactiveColor="gray"
           />
@@ -208,6 +227,22 @@ const OrderScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  iconButton: {
+    paddingLeft: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   listContent: {
     padding: 10,
   },
