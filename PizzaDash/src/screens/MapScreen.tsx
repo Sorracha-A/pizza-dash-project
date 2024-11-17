@@ -2,12 +2,11 @@ import React, {useEffect, useState, useRef} from 'react';
 import {
   View,
   Text,
-  PermissionsAndroid,
-  Platform,
   ActivityIndicator,
   Alert,
   TouchableOpacity,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import MapView, {Marker, Callout, Polyline} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -15,14 +14,16 @@ import axios from 'axios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import haversine from 'haversine';
 import {useNavigation} from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/RootStackParams';
+import {StackNavigationProp} from '@react-navigation/stack';
+import {RootStackParamList} from '../navigation/RootStackParams';
+import {useLocationStore} from '../store/useLocationStore';
 
 const MapScreen: React.FC = () => {
-  const [location, setLocation] = useState<any>(null);
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loadingRestaurants, setLoadingRestaurants] = useState<boolean>(false);
-  const [routeCoords, setRouteCoords] = useState<any[]>([]);
+  const [routeCoords, setRouteCoords] = useState<
+    {latitude: number; longitude: number}[]
+  >([]);
   const [loadingRoute, setLoadingRoute] = useState<boolean>(false);
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
   const [navigationActive, setNavigationActive] = useState<boolean>(false);
@@ -35,40 +36,18 @@ const MapScreen: React.FC = () => {
   const selectedRestaurantRef = useRef<any>(null);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  useEffect(() => {
-    const requestLocationPermission = async () => {
-      if (Platform.OS === 'ios') {
-        Geolocation.requestAuthorization();
-      } else if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert(
-            'Permission Denied',
-            'Location permission is required to use this feature.',
-          );
-          return;
-        }
-      }
-      Geolocation.getCurrentPosition(
-        position => {
-          setLocation(position.coords);
-        },
-        error => {
-          console.log(error);
-          Alert.alert('Error', 'Could not get your location.');
-        },
-        {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
-      );
-    };
+  // Use global location store
+  const location = useLocationStore(state => state.location);
+  const requestLocation = useLocationStore(state => state.requestLocation);
+  const setLocation = useLocationStore(state => state.setLocation);
 
-    requestLocationPermission();
+  useEffect(() => {
+    requestLocation();
 
     // Start watching location updates
     const watchId = Geolocation.watchPosition(
       position => {
-        setLocation(position.coords);
+        setLocation({...position.coords});
       },
       error => {
         console.log(error);
@@ -79,35 +58,32 @@ const MapScreen: React.FC = () => {
     return () => {
       Geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [requestLocation, setLocation]);
 
   useEffect(() => {
     const fetchRestaurants = async () => {
       setLoadingRestaurants(true);
       try {
-        const response = await axios.get(
-          `https://overpass-api.de/api/interpreter?data=[out:json];node[amenity=restaurant](around:3000,${location.latitude},${location.longitude});out;`,
-        );
-        const elements = response.data.elements;
-        setRestaurants(elements);
+        if (location?.latitude && location?.longitude) {
+          const response = await axios.get(
+            `https://overpass-api.de/api/interpreter?data=[out:json];node[amenity=restaurant](around:3000,${location.latitude},${location.longitude});out;`,
+          );
+          const elements = response.data.elements;
+          setRestaurants(elements);
+        }
       } catch (error) {
-        console.error(
-          'Error fetching restaurants:',
-          error.response || error.message || error,
-        );
+        console.error('Error fetching restaurants:');
         Alert.alert('Error', 'Could not fetch nearby restaurants.');
       } finally {
         setLoadingRestaurants(false);
       }
     };
 
-    if (location?.latitude && location?.longitude) {
-      fetchRestaurants();
-    }
-  }, [location?.latitude, location?.longitude]);
+    fetchRestaurants();
+  }, [location]);
 
   const getRoute = async (
-    currentLocation: any,
+    currentLocation: {latitude: number; longitude: number},
     destinationLat: number,
     destinationLon: number,
   ) => {
@@ -125,10 +101,7 @@ const MapScreen: React.FC = () => {
       setRouteCoords(routeCoords);
       setEstimatedTime(Math.ceil(route.duration / 60)); // Duration in minutes
     } catch (error) {
-      console.error(
-        'Error fetching route:',
-        error.response || error.message || error,
-      );
+      console.error('Error fetching route:');
       Alert.alert('Error', 'Could not get route.');
     } finally {
       setLoadingRoute(false);
@@ -203,9 +176,6 @@ const MapScreen: React.FC = () => {
       );
     }
   };
-
-  
-
 
   const navigateToPizzaGame = () => {
     if (selectedRestaurantRef.current) {

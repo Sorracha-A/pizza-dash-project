@@ -9,20 +9,37 @@ import {
   Dimensions,
   Image,
   Alert,
+  Platform,
 } from 'react-native';
 import {TabView, SceneMap, TabBar} from 'react-native-tab-view';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import moment from 'moment';
 import {useOrderStore, Order} from '../store/useOrderStore';
+import {useNavigation} from '@react-navigation/native';
+import {TabParamList} from '../navigation/TabParamList';
+import {StackNavigationProp} from '@react-navigation/stack';
+import {useLocationStore} from '../store/useLocationStore';
+
 const {width} = Dimensions.get('window');
 
 const OrderScreen: React.FC = () => {
   const [index, setIndex] = useState(0);
+
+  const location = useLocationStore(state => state.location);
+  const requestLocation = useLocationStore(state => state.requestLocation);
+
+  useEffect(() => {
+    if (!location) {
+      requestLocation();
+    }
+  }, [location, requestLocation]);
+
   const [routes] = useState([
     {key: 'incoming', title: 'Incoming Orders'},
     {key: 'active', title: 'Active Orders'},
     {key: 'past', title: 'Past Orders'},
   ]);
+  const navigation = useNavigation<StackNavigationProp<TabParamList>>();
 
   const {
     incomingOrders,
@@ -35,14 +52,39 @@ const OrderScreen: React.FC = () => {
 
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
 
+  const generateRandomPoint = (
+    center: {latitude: number; longitude: number},
+    radiusInMeters: number,
+  ): {latitude: number; longitude: number} => {
+    const radiusInDegrees = radiusInMeters / 111320;
+    const u = Math.random();
+    const v = Math.random();
+    const w = radiusInDegrees * Math.sqrt(u);
+    const t = 2 * Math.PI * v;
+    const x = w * Math.cos(t);
+    const y = w * Math.sin(t);
+
+    const newLatitude = center.latitude + y;
+    const newLongitude =
+      center.longitude + x / Math.cos((center.latitude * Math.PI) / 180);
+
+    return {
+      latitude: newLatitude,
+      longitude: newLongitude,
+    };
+  };
+
   useEffect(() => {
     const generateRandomOrder = () => {
       if (
         !isAcceptingOrders ||
         incomingOrders.length >= 5 ||
-        activeOrders.length >= 3
+        activeOrders.length >= 3 ||
+        !location
       )
         return;
+
+      const customerLocation = generateRandomPoint(location, 1000);
 
       const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
@@ -58,25 +100,25 @@ const OrderScreen: React.FC = () => {
         tip: parseFloat((Math.random() * 10).toFixed(2)),
         date: moment().format('MMMM Do YYYY, h:mm:ss a'),
         status: 'incoming',
+        pizzaMade: false,
+        customerLocation,
       };
 
-      // Add the new order to incomingOrders using Zustand's state update function
       useOrderStore.setState(state => ({
         incomingOrders: [...state.incomingOrders, newOrder],
       }));
 
-      // Set a timeout to remove the order if not accepted within 3 minutes
       setTimeout(() => {
         useOrderStore.getState().removeIncomingOrder(newOrder.id);
-      }, 3 * 60 * 1000); // 3 minutes
+      }, 3 * 60 * 1000);
     };
 
     const interval = setInterval(
       generateRandomOrder,
-      Math.floor(Math.random() * (10000-5000) + 5000),
+      Math.floor(Math.random() * 5000 + 1000),
     );
     return () => clearInterval(interval);
-  }, [isAcceptingOrders, incomingOrders.length, activeOrders.length]);
+  }, [isAcceptingOrders, incomingOrders.length, activeOrders.length, location]);
 
   const toggleOrderAcceptance = () => {
     setIsAcceptingOrders(prev => !prev);
@@ -90,7 +132,7 @@ const OrderScreen: React.FC = () => {
       );
       return;
     }
-    addActiveOrder({...order, status: 'active'}); // Update status to 'active'
+    addActiveOrder({...order, status: 'active'});
   };
 
   const declineOrder = (orderId: string) => {
@@ -144,8 +186,16 @@ const OrderScreen: React.FC = () => {
       {isActiveOrder && (
         <TouchableOpacity
           style={[styles.button, {backgroundColor: '#2980b9', marginTop: 10}]}
-          onPress={() => completeOrder(order.id)}>
-          <Text style={styles.buttonText}>Complete Order</Text>
+          onPress={() => {
+            if (order.pizzaMade) {
+              navigation.navigate('Map', {
+                customerLocation: order.customerLocation,
+              });
+            }
+          }}>
+          <Text style={styles.buttonText}>
+            {order.pizzaMade ? 'Navigate to Customer' : 'Make Pizza'}
+          </Text>
         </TouchableOpacity>
       )}
     </View>

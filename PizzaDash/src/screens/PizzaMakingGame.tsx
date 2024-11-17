@@ -21,6 +21,7 @@ const PizzaMakingGame: React.FC = ({route, navigation}: any) => {
   const [ingredientsAdded, setIngredientsAdded] = useState<Ingredient[]>([]);
   const [isMinigameActive, setIsMinigameActive] = useState(false);
   const [isPizzaMade, setIsPizzaMade] = useState(false);
+  const {updateOrder} = useOrderStore();
 
   useEffect(() => {
     if (selectedOrder) {
@@ -65,7 +66,10 @@ const PizzaMakingGame: React.FC = ({route, navigation}: any) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                updateOrder(selectedOrder!.id, {pizzaMade: true});
+                navigation.goBack();
+              },
             },
           ],
         );

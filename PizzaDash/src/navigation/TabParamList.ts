@@ -1,5 +1,5 @@
 export type TabParamList = {
   Dashboard: undefined;
-  Map: undefined;
+  Map: {customerLocation?: {latitude: number; longitude: number}} | undefined;
   Order: undefined;
 };
