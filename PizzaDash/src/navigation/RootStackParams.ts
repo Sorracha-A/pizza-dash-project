@@ -3,4 +3,5 @@ export type RootStackParamList = {
   Main: undefined;
   EditProfile: undefined;
   PizzaMakingGame: {restaurant: any} | undefined;
+  
 };

@@ -15,11 +15,10 @@ import {TabView, SceneMap, TabBar} from 'react-native-tab-view';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import moment from 'moment';
 import {useOrderStore, Order} from '../store/useOrderStore';
-import {useNavigation} from '@react-navigation/native';
+import {RouteProp, useNavigation} from '@react-navigation/native';
 import {TabParamList} from '../navigation/TabParamList';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {useLocationStore} from '../store/useLocationStore';
-
 const {width} = Dimensions.get('window');
 
 const OrderScreen: React.FC = () => {
@@ -84,7 +83,7 @@ const OrderScreen: React.FC = () => {
       )
         return;
 
-      const customerLocation = generateRandomPoint(location, 1000);
+      const customerLocation = generateRandomPoint(location, 100);
 
       const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
@@ -187,14 +186,21 @@ const OrderScreen: React.FC = () => {
         <TouchableOpacity
           style={[styles.button, {backgroundColor: '#2980b9', marginTop: 10}]}
           onPress={() => {
-            if (order.pizzaMade) {
+            if (order.isNearCustomer) {
+              completeOrder(order.id);
+            } else if (order.pizzaMade && order.customerLocation) {
               navigation.navigate('Map', {
                 customerLocation: order.customerLocation,
+                orderId: order.id,
               });
             }
           }}>
           <Text style={styles.buttonText}>
-            {order.pizzaMade ? 'Navigate to Customer' : 'Make Pizza'}
+            {order.isNearCustomer
+              ? 'Complete Order'
+              : order.pizzaMade
+              ? 'Navigate to Customer'
+              : 'Make Pizza'}
           </Text>
         </TouchableOpacity>
       )}
@@ -216,6 +222,7 @@ const OrderScreen: React.FC = () => {
     active: () => (
       <FlatList
         data={activeOrders}
+        extraData={activeOrders}
         keyExtractor={item => item.id}
         renderItem={({item}) => renderOrderItem(item, true)}
         contentContainerStyle={styles.listContent}

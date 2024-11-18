@@ -31,7 +31,7 @@ export const useLocationStore = create<LocationStore>(set => ({
 
     Geolocation.getCurrentPosition(
       position => {
-        set({location: {...position.coords}});
+        set({location: position.coords});
       },
       error => {
         console.log(error);

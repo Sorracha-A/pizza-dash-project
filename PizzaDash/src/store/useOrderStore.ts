@@ -15,6 +15,7 @@ export type Order = {
   tip: number;
   date: string;
   pizzaMade: boolean;
+  isNearCustomer?: boolean;
   customerLocation: {latitude: number; longitude: number};
   status: 'incoming' | 'active' | 'past';
 };
@@ -25,7 +26,10 @@ type OrderStore = {
   pastOrders: Order[];
   addActiveOrder: (order: Order) => void;
   removeIncomingOrder: (id: string) => void;
-  setOrderStatus: (id: string, status: 'incoming' | 'active' | 'past') => void;
+  setOrderStatus: (
+    id: string,
+    status: 'incoming' | 'active'  | 'past',
+  ) => void;
   updateOrder: (id: string, updates: Partial<Order>) => void;
 };
 

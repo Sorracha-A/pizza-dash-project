@@ -1,4 +1,5 @@
-import React, {useEffect, useState, useRef} from 'react';
+// MapScreen.tsx
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,38 +9,64 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import MapView, {Marker, Callout, Polyline} from 'react-native-maps';
+import MapView, { Marker, Callout, Polyline } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import haversine from 'haversine';
-import {useNavigation} from '@react-navigation/native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../navigation/RootStackParams';
-import {useLocationStore} from '../store/useLocationStore';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../navigation/RootStackParams';
+import { useLocationStore } from '../store/useLocationStore';
+import { TabParamList } from '../navigation/TabParamList';
+import { useOrderStore } from '../store/useOrderStore';
+
+type MapScreenRouteProp = RouteProp<TabParamList, 'Map'>;
 
 const MapScreen: React.FC = () => {
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loadingRestaurants, setLoadingRestaurants] = useState<boolean>(false);
   const [routeCoords, setRouteCoords] = useState<
-    {latitude: number; longitude: number}[]
+    { latitude: number; longitude: number }[]
   >([]);
   const [loadingRoute, setLoadingRoute] = useState<boolean>(false);
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
   const [navigationActive, setNavigationActive] = useState<boolean>(false);
-  const [navigationWatchId, setNavigationWatchId] = useState<number | null>(
-    null,
-  );
+  const [navigationWatchId, setNavigationWatchId] = useState<number | null>(null);
   const [showMakePizza, setShowMakePizza] = useState<boolean>(false);
+  const [destination, setDestination] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [isNavigatingToCustomer, setIsNavigatingToCustomer] = useState<boolean>(false);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+
+  // Create refs to hold the latest values
+  const isNavigatingToCustomerRef = useRef(isNavigatingToCustomer);
+  const currentOrderIdRef = useRef(currentOrderId);
+
+  // Update refs whenever state changes
+  useEffect(() => {
+    isNavigatingToCustomerRef.current = isNavigatingToCustomer;
+  }, [isNavigatingToCustomer]);
+
+  useEffect(() => {
+    currentOrderIdRef.current = currentOrderId;
+  }, [currentOrderId]);
 
   const mapRef = useRef<MapView>(null);
   const selectedRestaurantRef = useRef<any>(null);
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const navigationList = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const navigationTab = useNavigation<StackNavigationProp<TabParamList>>();
+  const route = useRoute<MapScreenRouteProp>();
 
   // Use global location store
   const location = useLocationStore(state => state.location);
   const requestLocation = useLocationStore(state => state.requestLocation);
   const setLocation = useLocationStore(state => state.setLocation);
+
+  // Use order store
+  const updateOrder = useOrderStore(state => state.updateOrder);
 
   useEffect(() => {
     requestLocation();
@@ -47,12 +74,12 @@ const MapScreen: React.FC = () => {
     // Start watching location updates
     const watchId = Geolocation.watchPosition(
       position => {
-        setLocation({...position.coords});
+        setLocation({ ...position.coords });
       },
       error => {
         console.log(error);
       },
-      {enableHighAccuracy: true, distanceFilter: 10},
+      { enableHighAccuracy: true, distanceFilter: 10 },
     );
 
     return () => {
@@ -61,56 +88,47 @@ const MapScreen: React.FC = () => {
   }, [requestLocation, setLocation]);
 
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      setLoadingRestaurants(true);
-      try {
-        if (location?.latitude && location?.longitude) {
+    if (location?.latitude && location?.longitude) {
+      const fetchRestaurants = async () => {
+        setLoadingRestaurants(true);
+        try {
           const response = await axios.get(
             `https://overpass-api.de/api/interpreter?data=[out:json];node[amenity=restaurant](around:3000,${location.latitude},${location.longitude});out;`,
           );
           const elements = response.data.elements;
           setRestaurants(elements);
+        } catch (error) {
+          console.error('Error fetching restaurants:', error);
+          Alert.alert('Error', 'Could not fetch nearby restaurants.');
+        } finally {
+          setLoadingRestaurants(false);
         }
-      } catch (error) {
-        console.error('Error fetching restaurants:');
-        Alert.alert('Error', 'Could not fetch nearby restaurants.');
-      } finally {
-        setLoadingRestaurants(false);
-      }
-    };
+      };
 
-    fetchRestaurants();
+      fetchRestaurants();
+    }
   }, [location]);
 
-  const getRoute = async (
-    currentLocation: {latitude: number; longitude: number},
-    destinationLat: number,
-    destinationLon: number,
-  ) => {
-    setLoadingRoute(true);
-    try {
-      const response = await axios.get(
-        `https://router.project-osrm.org/route/v1/driving/${currentLocation.longitude},${currentLocation.latitude};${destinationLon},${destinationLat}?overview=full&geometries=geojson`,
-      );
-      const route = response.data.routes[0];
-      const coordinates = route.geometry.coordinates;
-      const routeCoords = coordinates.map((coord: [number, number]) => ({
-        latitude: coord[1],
-        longitude: coord[0],
-      }));
-      setRouteCoords(routeCoords);
-      setEstimatedTime(Math.ceil(route.duration / 60)); // Duration in minutes
-    } catch (error) {
-      console.error('Error fetching route:');
-      Alert.alert('Error', 'Could not get route.');
-    } finally {
-      setLoadingRoute(false);
+  useEffect(() => {
+    if (route.params?.customerLocation) {
+      const customerLocation = route.params.customerLocation;
+      const orderId = route.params.orderId ?? null;
+      setIsNavigatingToCustomer(true);
+      setCurrentOrderId(orderId);
+      handleNavigateToLocation(customerLocation);
+      navigationTab.setParams({
+        customerLocation: undefined,
+        orderId: undefined,
+      });
     }
-  };
+  }, [route.params, navigationTab]);
 
-  const handleNavigatePress = (restaurant: any) => {
-    selectedRestaurantRef.current = restaurant;
+  const handleNavigateToLocation = (destinationCoords: {
+    latitude: number;
+    longitude: number;
+  }) => {
     setNavigationActive(true);
+    setDestination(destinationCoords);
 
     // Clear any existing navigation watcher
     if (navigationWatchId !== null) {
@@ -122,8 +140,12 @@ const MapScreen: React.FC = () => {
     const id = Geolocation.watchPosition(
       position => {
         const currentCoords = position.coords;
-        setLocation(currentCoords);
-        getRoute(currentCoords, restaurant.lat, restaurant.lon);
+        setLocation({ ...currentCoords });
+        getRoute(
+          currentCoords,
+          destinationCoords.latitude,
+          destinationCoords.longitude,
+        );
 
         // Calculate distance to destination
         const distance = haversine(
@@ -131,24 +153,42 @@ const MapScreen: React.FC = () => {
             latitude: currentCoords.latitude,
             longitude: currentCoords.longitude,
           },
-          {latitude: restaurant.lat, longitude: restaurant.lon},
-          {unit: 'meter'},
+          destinationCoords,
+          { unit: 'meter' },
         );
 
-        // Show "Make Pizza" button if within 300 meters
-        if (distance <= 300) {
-          setShowMakePizza(true);
+        if (isNavigatingToCustomerRef.current && currentOrderIdRef.current) {
+          if (distance <= 300000) {
+            updateOrder(currentOrderIdRef.current, {
+              isNearCustomer: true,
+            });
+          } else {
+            updateOrder(currentOrderIdRef.current, {
+              isNearCustomer: false,
+            });
+          }
         } else {
-          setShowMakePizza(false);
+          // Show "Make Pizza" button when near restaurant
+          setShowMakePizza(distance <= 300);
         }
       },
       error => {
         console.log(error);
       },
-      {enableHighAccuracy: true, distanceFilter: 10},
+      { enableHighAccuracy: true, distanceFilter: 10 },
     );
 
     setNavigationWatchId(id);
+  };
+
+  const handleNavigatePress = (restaurant: any) => {
+    selectedRestaurantRef.current = restaurant;
+    setIsNavigatingToCustomer(false);
+    setCurrentOrderId(null);
+    handleNavigateToLocation({
+      latitude: restaurant.lat,
+      longitude: restaurant.lon,
+    });
   };
 
   const stopNavigation = () => {
@@ -156,11 +196,20 @@ const MapScreen: React.FC = () => {
     setRouteCoords([]);
     setEstimatedTime(null);
     setShowMakePizza(false);
+    setDestination(null);
+    if (currentOrderIdRef.current && isNavigatingToCustomerRef.current) {
+      updateOrder(currentOrderIdRef.current, {
+        isNearCustomer: false,
+      });
+    }
+    setCurrentOrderId(null);
+    setIsNavigatingToCustomer(false);
 
     if (navigationWatchId !== null) {
       Geolocation.clearWatch(navigationWatchId);
       setNavigationWatchId(null);
     }
+    selectedRestaurantRef.current = null;
   };
 
   const centerMapOnLocation = () => {
@@ -179,9 +228,35 @@ const MapScreen: React.FC = () => {
 
   const navigateToPizzaGame = () => {
     if (selectedRestaurantRef.current) {
-      navigation.navigate('PizzaMakingGame', {
+      navigationList.navigate('PizzaMakingGame', {
         restaurant: selectedRestaurantRef.current,
       });
+    }
+  };
+
+  const getRoute = async (
+    currentLocation: { latitude: number; longitude: number },
+    destinationLat: number,
+    destinationLon: number,
+  ) => {
+    setLoadingRoute(true);
+    try {
+      const response = await axios.get(
+        `https://router.project-osrm.org/route/v1/driving/${currentLocation.longitude},${currentLocation.latitude};${destinationLon},${destinationLat}?overview=full&geometries=geojson`,
+      );
+      const route = response.data.routes[0];
+      const coordinates = route.geometry.coordinates;
+      const routeCoords = coordinates.map((coord: [number, number]) => ({
+        latitude: coord[1],
+        longitude: coord[0],
+      }));
+      setRouteCoords(routeCoords);
+      setEstimatedTime(Math.ceil(route.duration / 60)); // Duration in minutes
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      Alert.alert('Error', 'Could not get route.');
+    } finally {
+      setLoadingRoute(false);
     }
   };
 
@@ -195,22 +270,21 @@ const MapScreen: React.FC = () => {
   }
 
   return (
-    <View style={{flex: 1}}>
+    <View style={{ flex: 1 }}>
       {estimatedTime !== null && (
         <View style={styles.estimatedTimeContainer}>
           <Text style={styles.estimatedTimeText}>
             Estimated Time: {estimatedTime} mins
           </Text>
-          <View style={{flexDirection: 'row', marginTop: 10}}>
-            <TouchableOpacity
-              onPress={stopNavigation}
-              style={styles.stopButton}>
+          <View style={{ flexDirection: 'row', marginTop: 10 }}>
+            <TouchableOpacity onPress={stopNavigation} style={styles.stopButton}>
               <Text style={styles.stopButtonText}>Stop Navigation</Text>
             </TouchableOpacity>
-            {showMakePizza && (
+            {!isNavigatingToCustomer && showMakePizza && (
               <TouchableOpacity
                 onPress={navigateToPizzaGame}
-                style={styles.makePizzaButton}>
+                style={styles.makePizzaButton}
+              >
                 <Text style={styles.makePizzaButtonText}>Make Pizza</Text>
               </TouchableOpacity>
             )}
@@ -221,7 +295,7 @@ const MapScreen: React.FC = () => {
       {(loadingRestaurants || loadingRoute) && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="small" color="#E74C3C" />
-          <Text style={{textAlign: 'center', color: '#E74C3C'}}>
+          <Text style={{ textAlign: 'center', color: '#E74C3C' }}>
             {loadingRestaurants ? 'Loading restaurants...' : 'Loading route...'}
           </Text>
         </View>
@@ -229,7 +303,7 @@ const MapScreen: React.FC = () => {
 
       <MapView
         ref={mapRef}
-        style={{flex: 1}}
+        style={{ flex: 1 }}
         initialRegion={{
           latitude: location.latitude,
           longitude: location.longitude,
@@ -237,34 +311,42 @@ const MapScreen: React.FC = () => {
           longitudeDelta: 0.05,
         }}
         showsUserLocation
-        followsUserLocation={navigationActive}>
+        followsUserLocation={navigationActive}
+      >
         {restaurants.map((restaurant, index) => (
           <Marker
             key={index}
             coordinate={{
               latitude: restaurant.lat,
               longitude: restaurant.lon,
-            }}>
+            }}
+          >
             <Callout>
               <View
                 style={{
                   width: 200,
                   flexDirection: 'row',
                   alignItems: 'center',
-                }}>
-                <View style={{flex: 1}}>
+                }}
+              >
+                <View style={{ flex: 1 }}>
                   <Text>{restaurant.tags.name || 'Restaurant'}</Text>
                   <Text>{restaurant.tags['addr:street'] || ''}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => handleNavigatePress(restaurant)}
-                  style={{paddingLeft: 10}}>
+                  style={{ paddingLeft: 10 }}
+                >
                   <Icon name="location-arrow" size={24} color="#E74C3C" />
                 </TouchableOpacity>
               </View>
             </Callout>
           </Marker>
         ))}
+
+        {destination && (
+          <Marker coordinate={destination} title="Destination" pinColor="blue" />
+        )}
 
         {routeCoords.length > 0 && (
           <Polyline
@@ -275,9 +357,7 @@ const MapScreen: React.FC = () => {
         )}
       </MapView>
 
-      <TouchableOpacity
-        style={styles.centerButton}
-        onPress={centerMapOnLocation}>
+      <TouchableOpacity style={styles.centerButton} onPress={centerMapOnLocation}>
         <Icon name="crosshairs" size={24} color="white" />
       </TouchableOpacity>
     </View>
