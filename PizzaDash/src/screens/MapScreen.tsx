@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Modal,
 } from 'react-native';
 import MapView, {Marker, Callout, Polyline} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -44,6 +45,7 @@ const MapScreen: React.FC = () => {
   const [isNavigatingToCustomer, setIsNavigatingToCustomer] =
     useState<boolean>(false);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [deliveryCompleted, setDeliveryCompleted] = useState<boolean>(false);
 
   // Create refs to hold the latest values
   const isNavigatingToCustomerRef = useRef(isNavigatingToCustomer);
@@ -51,9 +53,11 @@ const MapScreen: React.FC = () => {
   const currentPastOrder = useOrderStore(state =>
     state.pastOrders.find(order => order.id === currentOrderId),
   );
+  const setCurrentOrder = useOrderStore(state => state.setCurrentOrder);
 
   useEffect(() => {
     if (currentPastOrder && currentPastOrder.status === 'past') {
+      setDeliveryCompleted(true);
       stopNavigation();
     }
   }, [currentPastOrder]);
@@ -172,6 +176,10 @@ const MapScreen: React.FC = () => {
         );
 
         if (isNavigatingToCustomerRef.current && currentOrderIdRef.current) {
+          const currentOrder = useOrderStore
+            .getState()
+            .activeOrders.find(order => order.id === currentOrderIdRef.current);
+          setCurrentOrder(currentOrder ?? null);
           if (distance <= 300000) {
             updateOrder(currentOrderIdRef.current, {
               isNearCustomer: true,
@@ -207,6 +215,7 @@ const MapScreen: React.FC = () => {
 
   const stopNavigation = () => {
     setNavigationActive(false);
+    setCurrentOrder(null);
     setRouteCoords([]);
     setEstimatedTime(null);
     setShowMakePizza(false);
@@ -377,6 +386,30 @@ const MapScreen: React.FC = () => {
         onPress={centerMapOnLocation}>
         <Icon name="crosshairs" size={24} color="white" />
       </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={deliveryCompleted}
+        onRequestClose={() => {
+          setDeliveryCompleted(false);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Use an icon from FontAwesome instead of a custom image */}
+            <Icon name="check-circle" size={80} color="#27ae60" />
+            <Text style={styles.modalTitle}>Delivery Completed!</Text>
+            <Text style={styles.modalMessage}>
+              Your pizza has been delivered successfully. Thank you!
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setDeliveryCompleted(false)}>
+              <Text style={styles.modalButtonText}>Awesome!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -438,5 +471,43 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    color: '#27ae60',
+  },
+  modalMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#34495e',
+  },
+  modalButton: {
+    backgroundColor: '#27ae60',
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

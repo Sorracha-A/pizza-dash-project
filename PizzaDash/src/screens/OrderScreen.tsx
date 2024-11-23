@@ -50,6 +50,12 @@ const OrderScreen: React.FC = () => {
   } = useOrderStore();
 
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
+  const updateStartLocation = (
+    orderId: string,
+    location: {latitude: number; longitude: number},
+  ) => {
+    useOrderStore.getState().updateOrderStartLocation(orderId, location);
+  };
 
   const generateRandomPoint = (
     center: {latitude: number; longitude: number},
@@ -189,6 +195,10 @@ const OrderScreen: React.FC = () => {
             if (order.isNearCustomer) {
               completeOrder(order.id);
             } else if (order.pizzaMade && order.customerLocation) {
+              if (location){
+              updateStartLocation(order.id, location);
+              console.log("cus",order.startLocation);
+              }
               navigation.navigate('Map', {
                 customerLocation: order.customerLocation,
                 orderId: order.id,

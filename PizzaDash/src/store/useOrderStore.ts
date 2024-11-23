@@ -18,25 +18,30 @@ export type Order = {
   isNearCustomer?: boolean;
   customerLocation: {latitude: number; longitude: number};
   status: 'incoming' | 'active' | 'past';
+  startLocation?: {latitude: number; longitude: number};
 };
 
 type OrderStore = {
   activeOrders: Order[];
   incomingOrders: Order[];
   pastOrders: Order[];
+  currentOrder: Order | null; // Track the current order being delivered
   addActiveOrder: (order: Order) => void;
   removeIncomingOrder: (id: string) => void;
-  setOrderStatus: (
-    id: string,
-    status: 'incoming' | 'active'  | 'past',
-  ) => void;
+  setOrderStatus: (id: string, status: 'incoming' | 'active' | 'past') => void;
   updateOrder: (id: string, updates: Partial<Order>) => void;
+  updateOrderStartLocation: (
+    id: string,
+    startLocation: {latitude: number; longitude: number},
+  ) => void; // New method
+  setCurrentOrder: (order: Order | null) => void;
 };
 
 export const useOrderStore = create<OrderStore>(set => ({
   activeOrders: [],
   incomingOrders: [],
   pastOrders: [],
+  currentOrder: null,
 
   addActiveOrder: order =>
     set(state => ({
@@ -74,11 +79,32 @@ export const useOrderStore = create<OrderStore>(set => ({
       }
       return state;
     }),
+
   updateOrder: (id, updates) =>
     set(state => {
       const index = state.activeOrders.findIndex(o => o.id === id);
       if (index !== -1) {
         const updatedOrder = {...state.activeOrders[index], ...updates};
+        const newActiveOrders = [...state.activeOrders];
+        newActiveOrders[index] = updatedOrder;
+        return {activeOrders: newActiveOrders};
+      }
+      return state;
+    }),
+
+  setCurrentOrder: order =>
+    set(() => ({
+      currentOrder: order,
+    })),
+
+  updateOrderStartLocation: (id, startLocation) =>
+    set(state => {
+      const index = state.activeOrders.findIndex(o => o.id === id);
+      if (index !== -1) {
+        const updatedOrder = {
+          ...state.activeOrders[index],
+          startLocation,
+        };
         const newActiveOrders = [...state.activeOrders];
         newActiveOrders[index] = updatedOrder;
         return {activeOrders: newActiveOrders};
