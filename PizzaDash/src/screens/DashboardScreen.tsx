@@ -18,6 +18,8 @@ import {TabView, TabBar} from 'react-native-tab-view';
 import {LineChart} from 'react-native-chart-kit';
 import {useOrderStore} from '../store/useOrderStore';
 import {useLocationStore} from '../store/useLocationStore';
+import PedometerIos from 'react-native-pedometer-ios';
+
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -79,6 +81,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   useEffect(() => {
     if (!currentOrder) {
       setDistanceLeft(0);
+      setFullDistance(0);
       setProgress(0);
       return;
     }
@@ -128,7 +131,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     7000, 7500, 8000, 8500, 9000, 9500, 10000, 9500, 9000, 8500, 8000, 7500,
   ];
   const mockUserData = {
-    totalEarnings: "-",
+    totalEarnings: '-',
     totalDistance: 15, // Total distance to complete the delivery
     distanceCovered: 8, // Distance already covered
   };
@@ -201,26 +204,42 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
             style={styles.runnerImage}
           />
           <View style={styles.runnerTextContainer}>
-            <Text style={styles.almostThereText}>Hurry! Start the delivery</Text>
-            <Text style={styles.distanceText}>
-              Distance left to complete the delivery 🍕
-            </Text>
-            <Text style={styles.kilometersText}>
-              {formatDistance(distanceLeft)}
-            </Text>
-            <ProgressBar
-              progress={progress}
-              width={width * 0.5}
-              color="#E74C3C"
-              style={styles.progressBar}
-            />
-            <Text style={styles.progressText}>
-              {`${
-                fullDistance - distanceLeft <= 0
-                  ? '0'
-                  : formatDistance(fullDistance - distanceLeft)
-              }  / ${formatDistance(fullDistance)} `}
-            </Text>
+            {currentOrder ? (
+              // Content when there is an active order
+              <>
+                <Text style={styles.almostThereText}>
+                  Hurry! Start the delivery
+                </Text>
+                <Text style={styles.distanceText}>
+                  Distance left to complete the delivery 🍕
+                </Text>
+                <Text style={styles.kilometersText}>
+                  {formatDistance(distanceLeft)}
+                </Text>
+                <ProgressBar
+                  progress={progress}
+                  width={width * 0.5}
+                  color="#E74C3C"
+                  style={styles.progressBar}
+                />
+                <Text style={styles.progressText}>
+                  {`${
+                    fullDistance - distanceLeft <= 0
+                      ? '0'
+                      : formatDistance(fullDistance - distanceLeft)
+                  } / ${formatDistance(fullDistance)}`}
+                </Text>
+              </>
+            ) : (
+              // Content when there is no active order
+              <>
+                <Text style={styles.noOrderHeader}>No Active Deliveries</Text>
+                <Text style={styles.noOrderSubtext}>
+                  You're all caught up! Ready to start a new delivery?
+                </Text>
+                {/* You can add more UI elements here if needed */}
+              </>
+            )}
           </View>
         </View>
       </View>
@@ -313,6 +332,19 @@ const StatsRoute: React.FC<StatsRouteProps> = ({labels, data}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  noOrderHeader: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#E74C3C',
+    textAlign: 'center',
+  },
+  noOrderSubtext: {
+    fontSize: 16,
+    color: 'gray',
+    marginTop: 10,
+    textAlign: 'center',
+    marginHorizontal: 20,
   },
   topSection: {
     paddingHorizontal: 20,
