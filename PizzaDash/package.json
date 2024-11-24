@@ -15,6 +15,7 @@
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/stack": "^6.4.1",
+    "@sfcivictech/react-native-cm-pedometer": "^1.0.0",
     "axios": "^1.7.7",
     "haversine": "^1.1.1",
     "moment": "^2.30.1",

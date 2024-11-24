@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Button,
 } from 'react-native';
 import {CompositeNavigationProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -18,8 +19,24 @@ import {TabView, TabBar} from 'react-native-tab-view';
 import {LineChart} from 'react-native-chart-kit';
 import {useOrderStore} from '../store/useOrderStore';
 import {useLocationStore} from '../store/useLocationStore';
-import PedometerIos from 'react-native-pedometer-ios';
-
+import {
+  CMAuthorizationStatus,
+  authorizationStatus,
+  isStepCountingAvailable,
+  isDistanceAvailable,
+  isFloorCountingAvailable,
+  isPaceAvailable,
+  isCadenceAvailable,
+  isPedometerEventTrackingAvailable,
+  type CMPedometerData,
+  startUpdates,
+  stopUpdates,
+  type CMPedometerEvent,
+  CMPedometerEventType,
+  startEventUpdates,
+  stopEventUpdates,
+  queryPedometerData,
+} from '@sfcivictech/react-native-cm-pedometer';
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -46,6 +63,65 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [distanceLeft, setDistanceLeft] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
   const [fullDistance, setFullDistance] = useState<number>(0);
+  const [status, setStatus] = React.useState<
+    CMAuthorizationStatus | undefined
+  >();
+  const [isStepAvail, setStepAvail] = React.useState<boolean | undefined>();
+  const [isDistAvail, setDistAvail] = React.useState<boolean | undefined>();
+  const [isFloorAvail, setFloorAvail] = React.useState<boolean | undefined>();
+  const [isPaceAvail, setPaceAvail] = React.useState<boolean | undefined>();
+  const [isCadenceAvail, setCadenceAvail] = React.useState<
+    boolean | undefined
+  >();
+  const [isEventAvail, setEventAvail] = React.useState<boolean | undefined>();
+
+  React.useEffect(() => {
+    authorizationStatus().then(setStatus);
+    isStepCountingAvailable().then(setStepAvail);
+    isDistanceAvailable().then(setDistAvail);
+    isFloorCountingAvailable().then(setFloorAvail);
+    isPaceAvailable().then(setPaceAvail);
+    isCadenceAvailable().then(setCadenceAvail);
+    isPedometerEventTrackingAvailable().then(setEventAvail);
+    return () => {
+      stopUpdates();
+    };
+  }, []);
+
+  const [error, setError] = React.useState<Error | undefined>();
+
+  const [isDataStarted, setDataStarted] = React.useState<boolean>(false);
+  const [startDate, setStartDate] = React.useState<Date>(new Date());
+  const [data, setData] = React.useState<CMPedometerData | undefined>();
+
+  function onPressData() {
+    const now = new Date();
+    if (isDataStarted) {
+      stopUpdates();
+      queryPedometerData(startDate, now).then(setData);
+    } else {
+      setStartDate(now);
+      startUpdates(now, (newError, newData) => {
+        setError(newError);
+        setData(newData);
+      });
+    }
+    setDataStarted(!isDataStarted);
+  }
+  const [isEventStarted, setEventStarted] = React.useState<boolean>(false);
+  const [event, setEvent] = React.useState<CMPedometerEvent | undefined>();
+
+  function onPressEvent() {
+    if (isEventStarted) {
+      stopEventUpdates();
+    } else {
+      startEventUpdates((newError, newEvent) => {
+        setError(newError);
+        setEvent(newEvent);
+      });
+    }
+    setEventStarted(!isEventStarted);
+  }
 
   const calculateDistance = (
     lat1: number,
@@ -185,6 +261,12 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
       <View style={styles.topSection}>
         {/* Header */}
         <View style={styles.header}>
+          <Text>
+            Authorization Status:{' '}
+            {status !== undefined && CMAuthorizationStatus[status]}
+          </Text>
+          <Text>Is Step Counting Available: {isStepAvail?.toString()}</Text>
+
           <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
             <Image
               source={require('../assets/images/pizzaDash.png')}
@@ -210,6 +292,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
                 <Text style={styles.almostThereText}>
                   Hurry! Start the delivery
                 </Text>
+
                 <Text style={styles.distanceText}>
                   Distance left to complete the delivery 🍕
                 </Text>
@@ -234,6 +317,40 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
               // Content when there is no active order
               <>
                 <Text style={styles.noOrderHeader}>No Active Deliveries</Text>
+                <Text>
+                  Is Pedometer Event Tracking Available:{' '}
+                  {isEventAvail?.toString()}
+                </Text>
+                <Button
+                  onPress={onPressData}
+                  title={
+                    isDataStarted ? 'Stop Data Updates' : 'Start Data Updates'
+                  }
+                />
+                <Text>Start Date: {data?.startDate.toLocaleString()}</Text>
+                <Text>End Date: {data?.endDate.toLocaleString()}</Text>
+                <Text>Number of Steps: {data?.numberOfSteps}</Text>
+                <Text>Distance: {data?.distance}</Text>
+                <Text>Current Cadence: {data?.currentCadence}</Text>
+                <Text>Current Pace: {data?.currentPace}</Text>
+                <Text>Average Active Pace: {data?.averageActivePace}</Text>
+                <Text>Floors Ascended: {data?.floorsAscended}</Text>
+                <Text>Floors Descended: {data?.floorsDescended}</Text>
+                <Button
+                  onPress={onPressEvent}
+                  title={
+                    isEventStarted
+                      ? 'Stop Event Updates'
+                      : 'Start Event Updates'
+                  }
+                />
+                <Text>Event date: {event?.date.toLocaleString()}</Text>
+                <Text>
+                  Event type:{' '}
+                  {event?.type !== undefined &&
+                    CMPedometerEventType[event.type]}
+                </Text>
+
                 <Text style={styles.noOrderSubtext}>
                   You're all caught up! Ready to start a new delivery?
                 </Text>
