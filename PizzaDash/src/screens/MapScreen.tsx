@@ -191,7 +191,7 @@ const MapScreen: React.FC = () => {
           }
         } else {
           // Show "Make Pizza" button when near restaurant
-          setShowMakePizza(distance <= 300);
+          setShowMakePizza(distance <= 30000);
         }
       },
       error => {

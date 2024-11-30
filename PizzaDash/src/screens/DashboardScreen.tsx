@@ -6,7 +6,6 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Button,
 } from 'react-native';
 import {CompositeNavigationProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -20,22 +19,9 @@ import {LineChart} from 'react-native-chart-kit';
 import {useOrderStore} from '../store/useOrderStore';
 import {useLocationStore} from '../store/useLocationStore';
 import {
-  CMAuthorizationStatus,
-  authorizationStatus,
-  isStepCountingAvailable,
-  isDistanceAvailable,
-  isFloorCountingAvailable,
-  isPaceAvailable,
-  isCadenceAvailable,
-  isPedometerEventTrackingAvailable,
-  type CMPedometerData,
   startUpdates,
   stopUpdates,
-  type CMPedometerEvent,
-  CMPedometerEventType,
-  startEventUpdates,
-  stopEventUpdates,
-  queryPedometerData,
+  type CMPedometerData,
 } from '@sfcivictech/react-native-cm-pedometer';
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
@@ -63,65 +49,24 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [distanceLeft, setDistanceLeft] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
   const [fullDistance, setFullDistance] = useState<number>(0);
-  const [status, setStatus] = React.useState<
-    CMAuthorizationStatus | undefined
-  >();
-  const [isStepAvail, setStepAvail] = React.useState<boolean | undefined>();
-  const [isDistAvail, setDistAvail] = React.useState<boolean | undefined>();
-  const [isFloorAvail, setFloorAvail] = React.useState<boolean | undefined>();
-  const [isPaceAvail, setPaceAvail] = React.useState<boolean | undefined>();
-  const [isCadenceAvail, setCadenceAvail] = React.useState<
-    boolean | undefined
-  >();
-  const [isEventAvail, setEventAvail] = React.useState<boolean | undefined>();
+
+  const [error, setError] = React.useState<Error | undefined>();
+  const [data, setData] = React.useState<CMPedometerData | undefined>();
 
   React.useEffect(() => {
-    authorizationStatus().then(setStatus);
-    isStepCountingAvailable().then(setStepAvail);
-    isDistanceAvailable().then(setDistAvail);
-    isFloorCountingAvailable().then(setFloorAvail);
-    isPaceAvailable().then(setPaceAvail);
-    isCadenceAvailable().then(setCadenceAvail);
-    isPedometerEventTrackingAvailable().then(setEventAvail);
+    startUpdates(new Date(), (newError, newData) => {
+      setError(newError);
+      if (newError) {
+        console.error(newError);
+      } else {
+        setData(newData);
+      }
+    });
+
     return () => {
       stopUpdates();
     };
   }, []);
-
-  const [error, setError] = React.useState<Error | undefined>();
-
-  const [isDataStarted, setDataStarted] = React.useState<boolean>(false);
-  const [startDate, setStartDate] = React.useState<Date>(new Date());
-  const [data, setData] = React.useState<CMPedometerData | undefined>();
-
-  function onPressData() {
-    const now = new Date();
-    if (isDataStarted) {
-      stopUpdates();
-      queryPedometerData(startDate, now).then(setData);
-    } else {
-      setStartDate(now);
-      startUpdates(now, (newError, newData) => {
-        setError(newError);
-        setData(newData);
-      });
-    }
-    setDataStarted(!isDataStarted);
-  }
-  const [isEventStarted, setEventStarted] = React.useState<boolean>(false);
-  const [event, setEvent] = React.useState<CMPedometerEvent | undefined>();
-
-  function onPressEvent() {
-    if (isEventStarted) {
-      stopEventUpdates();
-    } else {
-      startEventUpdates((newError, newEvent) => {
-        setError(newError);
-        setEvent(newEvent);
-      });
-    }
-    setEventStarted(!isEventStarted);
-  }
 
   const calculateDistance = (
     lat1: number,
@@ -129,7 +74,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     lat2: number,
     lon2: number,
   ): number => {
-    const R = 6371; // Earth's radius in kilometers
+    const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
@@ -140,14 +85,13 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
         Math.sin(dLon / 2) ** 2;
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in kilometers
+    const distance = R * c;
 
     return distance;
   };
 
   const formatDistance = (distance: number): string => {
     if (distance < 1) {
-      // Convert to meters
       const distanceInMeters = distance * 1000;
       return `${Math.round(distanceInMeters)} meters`;
     }
@@ -163,7 +107,6 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     }
 
     if (location && currentOrder.customerLocation) {
-      // Calculate raw distance left to the customer
       const rawDistance = calculateDistance(
         location.latitude,
         location.longitude,
@@ -174,7 +117,6 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
       setDistanceLeft(rawDistance);
 
       if (currentOrder.startLocation) {
-        // Calculate total distance
         const totalDistance = calculateDistance(
           currentOrder.startLocation.latitude,
           currentOrder.startLocation.longitude,
@@ -182,9 +124,6 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
           currentOrder.customerLocation.longitude,
         );
 
-        console.log('Full distance:', totalDistance);
-        console.log('Left distance:', rawDistance);
-        console.log('Progress:', (totalDistance - rawDistance) / totalDistance);
         const progress =
           totalDistance > 0 ? (totalDistance - rawDistance) / totalDistance : 0;
 
@@ -192,14 +131,10 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
         setProgress(progress > 0 ? progress : 0);
       } else {
         console.warn('Start location is not defined for the current order.');
-        setProgress(0); // Set progress to 0 if startLocation is missing
+        setProgress(0);
       }
     }
   }, [location, currentOrder]);
-
-  // const distanceLeft = mockUserData.totalDistance - mockUserData.distanceCovered;
-
-  // const progress =
 
   const dailyData = [8000, 9000, 7500, 10000, 8500, 9500, 12000];
   const monthlyData = [7500, 8000, 8500, 9000];
@@ -208,8 +143,8 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   ];
   const mockUserData = {
     totalEarnings: '-',
-    totalDistance: 15, // Total distance to complete the delivery
-    distanceCovered: 8, // Distance already covered
+    totalDistance: 15,
+    distanceCovered: 8,
   };
 
   const renderScene = ({route}: {route: {key: string}}) => {
@@ -257,16 +192,8 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <>
-      {/* Top Section */}
       <View style={styles.topSection}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text>
-            Authorization Status:{' '}
-            {status !== undefined && CMAuthorizationStatus[status]}
-          </Text>
-          <Text>Is Step Counting Available: {isStepAvail?.toString()}</Text>
-
           <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
             <Image
               source={require('../assets/images/pizzaDash.png')}
@@ -279,7 +206,6 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
           </View>
         </View>
         <Text style={styles.dateText}>{currentDate}</Text>
-        {/* Runner Section */}
         <View style={styles.runnerSection}>
           <Image
             source={require('../assets/images/pizzaDash.png')}
@@ -287,12 +213,10 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
           />
           <View style={styles.runnerTextContainer}>
             {currentOrder ? (
-              // Content when there is an active order
               <>
                 <Text style={styles.almostThereText}>
                   Hurry! Start the delivery
                 </Text>
-
                 <Text style={styles.distanceText}>
                   Distance left to complete the delivery 🍕
                 </Text>
@@ -314,54 +238,20 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
                 </Text>
               </>
             ) : (
-              // Content when there is no active order
               <>
                 <Text style={styles.noOrderHeader}>No Active Deliveries</Text>
-                <Text>
-                  Is Pedometer Event Tracking Available:{' '}
-                  {isEventAvail?.toString()}
+                <Text style={styles.stepCountText}>
+                  Total Steps Today: {data?.numberOfSteps ?? 0}
                 </Text>
-                <Button
-                  onPress={onPressData}
-                  title={
-                    isDataStarted ? 'Stop Data Updates' : 'Start Data Updates'
-                  }
-                />
-                <Text>Start Date: {data?.startDate.toLocaleString()}</Text>
-                <Text>End Date: {data?.endDate.toLocaleString()}</Text>
-                <Text>Number of Steps: {data?.numberOfSteps}</Text>
-                <Text>Distance: {data?.distance}</Text>
-                <Text>Current Cadence: {data?.currentCadence}</Text>
-                <Text>Current Pace: {data?.currentPace}</Text>
-                <Text>Average Active Pace: {data?.averageActivePace}</Text>
-                <Text>Floors Ascended: {data?.floorsAscended}</Text>
-                <Text>Floors Descended: {data?.floorsDescended}</Text>
-                <Button
-                  onPress={onPressEvent}
-                  title={
-                    isEventStarted
-                      ? 'Stop Event Updates'
-                      : 'Start Event Updates'
-                  }
-                />
-                <Text>Event date: {event?.date.toLocaleString()}</Text>
-                <Text>
-                  Event type:{' '}
-                  {event?.type !== undefined &&
-                    CMPedometerEventType[event.type]}
-                </Text>
-
                 <Text style={styles.noOrderSubtext}>
                   You're all caught up! Ready to start a new delivery?
                 </Text>
-                {/* You can add more UI elements here if needed */}
               </>
             )}
           </View>
         </View>
       </View>
 
-      {/* Bottom Section */}
       <View style={styles.bottomSection}>
         <Text style={styles.bottomHeader}>Your Steps Progress</Text>
         <TabView
@@ -396,7 +286,6 @@ const StatsRoute: React.FC<StatsRouteProps> = ({labels, data}) => {
   return (
     <View style={styles.tabScene}>
       <View style={styles.statsContainer}>
-        {/* Average */}
         <View style={styles.statsItem}>
           <Text style={styles.statsLabel}>Average</Text>
           <Text style={styles.statsValue}>
@@ -404,7 +293,6 @@ const StatsRoute: React.FC<StatsRouteProps> = ({labels, data}) => {
             <Text style={styles.statsUnit}> steps</Text>
           </Text>
         </View>
-        {/* Best */}
         <View style={styles.statsItem}>
           <Text style={styles.statsLabel}>Best</Text>
           <Text style={styles.statsValue}>
@@ -462,6 +350,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
     marginHorizontal: 20,
+  },
+  stepCountText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'center',
   },
   topSection: {
     paddingHorizontal: 20,
