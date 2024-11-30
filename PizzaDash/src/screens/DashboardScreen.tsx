@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  AppState,
 } from 'react-native';
 import {CompositeNavigationProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -18,9 +19,11 @@ import {TabView, TabBar} from 'react-native-tab-view';
 import {LineChart} from 'react-native-chart-kit';
 import {useOrderStore} from '../store/useOrderStore';
 import {useLocationStore} from '../store/useLocationStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   startUpdates,
   stopUpdates,
+  queryPedometerData,
   type CMPedometerData,
 } from '@sfcivictech/react-native-cm-pedometer';
 
@@ -36,8 +39,12 @@ type Props = {
 const {width} = Dimensions.get('window');
 
 const DashboardScreen: React.FC<Props> = ({navigation}) => {
-  const [index, setIndex] = React.useState(0);
-  const [routes] = React.useState([
+  const [index, setIndex] = useState(0);
+  const [dailyStepsData, setDailyStepsData] = useState<number[]>([]);
+  const [monthlyStepsData, setMonthlyStepsData] = useState<number[]>([]);
+  const [yearlyStepsData, setYearlyStepsData] = useState<number[]>([]);
+  const [totalStepsToday, setTotalStepsToday] = useState<number>(0);
+  const [routes] = useState([
     {key: 'daily', title: 'Daily'},
     {key: 'monthly', title: 'Monthly'},
     {key: 'yearly', title: 'Yearly'},
@@ -45,21 +52,48 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
   const currentOrder = useOrderStore(state => state.currentOrder);
   const location = useLocationStore(state => state.location);
-  const requestLocation = useLocationStore(state => state.requestLocation);
   const [distanceLeft, setDistanceLeft] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
   const [fullDistance, setFullDistance] = useState<number>(0);
 
-  const [error, setError] = React.useState<Error | undefined>();
-  const [data, setData] = React.useState<CMPedometerData | undefined>();
+  const [error, setError] = useState<Error | undefined>();
 
-  React.useEffect(() => {
-    startUpdates(new Date(), (newError, newData) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  useEffect(() => {
+    fetchStepsData();
+    initializeSteps();
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        queryPedometerData(startOfToday, new Date())
+          .then(data => setTotalStepsToday(data.numberOfSteps))
+          .catch(error => console.error('Error fetching steps on app focus:', error));
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const initializeSteps = async () => {
+    try {
+      const data = await queryPedometerData(startOfToday, new Date());
+      setTotalStepsToday(data.numberOfSteps);
+    } catch (error) {
+      console.error('Error fetching initial steps:', error);
+    }
+  };
+
+  useEffect(() => {
+    startUpdates(startOfToday, (newError, newData) => {
       setError(newError);
       if (newError) {
         console.error(newError);
-      } else {
-        setData(newData);
+      } else if (newData) {
+        setTotalStepsToday(newData.numberOfSteps);
       }
     });
 
@@ -67,6 +101,107 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
       stopUpdates();
     };
   }, []);
+
+  const fetchStepsData = async () => {
+    try {
+      const dailyData = await getStepsDataForLastNDays(7);
+      setDailyStepsData(dailyData);
+      await AsyncStorage.setItem('dailyStepsData', JSON.stringify(dailyData));
+
+      const monthlyData = await getStepsDataForLastNWeeks(4);
+      setMonthlyStepsData(monthlyData);
+      await AsyncStorage.setItem('monthlyStepsData', JSON.stringify(monthlyData));
+
+      const yearlyData = await getStepsDataForLastNMonths(12);
+      setYearlyStepsData(yearlyData);
+      await AsyncStorage.setItem('yearlyStepsData', JSON.stringify(yearlyData));
+    } catch (error) {
+      console.error('Error fetching steps data:', error);
+      // Load data from AsyncStorage in case of error
+      const dailyData = await AsyncStorage.getItem('dailyStepsData');
+      const monthlyData = await AsyncStorage.getItem('monthlyStepsData');
+      const yearlyData = await AsyncStorage.getItem('yearlyStepsData');
+
+      if (dailyData) setDailyStepsData(JSON.parse(dailyData));
+      if (monthlyData) setMonthlyStepsData(JSON.parse(monthlyData));
+      if (yearlyData) setYearlyStepsData(JSON.parse(yearlyData));
+    }
+  };
+
+  const getStepsBetweenDates = (startDate: Date, endDate: Date): Promise<number> => {
+    return new Promise<number>((resolve, reject) => {
+      queryPedometerData(startDate, endDate)
+        .then(data => {
+          resolve(data.numberOfSteps);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  };
+
+  const getStepsDataForLastNDays = async (n: number) => {
+    const stepsData = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - i);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(startDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      const steps = await getStepsBetweenDates(startDate, endDate);
+      stepsData.push(steps);
+    }
+    return stepsData;
+  };
+
+  const getStepsDataForLastNWeeks = async (n: number) => {
+    const stepsData = [];
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() - currentDate.getDay()); // Start of the week
+
+    for (let i = n - 1; i >= 0; i--) {
+      const startDate = new Date(currentDate);
+      startDate.setDate(currentDate.getDate() - i * 7);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+
+      const steps = await getStepsBetweenDates(startDate, endDate);
+      stepsData.push(steps);
+    }
+    return stepsData;
+  };
+
+  const getStepsDataForLastNMonths = async (n: number) => {
+    const stepsData = [];
+    const currentDate = new Date();
+    currentDate.setDate(1); // Start of the month
+
+    for (let i = n - 1; i >= 0; i--) {
+      const startDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - i,
+        1,
+      );
+      const endDate = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const steps = await getStepsBetweenDates(startDate, endDate);
+      stepsData.push(steps);
+    }
+    return stepsData;
+  };
 
   const calculateDistance = (
     lat1: number,
@@ -136,31 +271,20 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [location, currentOrder]);
 
-  const dailyData = [8000, 9000, 7500, 10000, 8500, 9500, 12000];
-  const monthlyData = [7500, 8000, 8500, 9000];
-  const yearlyData = [
-    7000, 7500, 8000, 8500, 9000, 9500, 10000, 9500, 9000, 8500, 8000, 7500,
-  ];
-  const mockUserData = {
-    totalEarnings: '-',
-    totalDistance: 15,
-    distanceCovered: 8,
-  };
-
   const renderScene = ({route}: {route: {key: string}}) => {
     switch (route.key) {
       case 'daily':
         return (
           <StatsRoute
-            labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
-            data={dailyData}
+            labels={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']}
+            data={dailyStepsData}
           />
         );
       case 'monthly':
         return (
           <StatsRoute
             labels={['Week 1', 'Week 2', 'Week 3', 'Week 4']}
-            data={monthlyData}
+            data={monthlyStepsData}
           />
         );
       case 'yearly':
@@ -180,7 +304,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
               'Nov',
               'Dec',
             ]}
-            data={yearlyData}
+            data={yearlyStepsData}
           />
         );
       default:
@@ -202,7 +326,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
           </TouchableOpacity>
           <View style={styles.moneyContainer}>
             <Icon name="money" size={24} color="#E74C3C" />
-            <Text style={styles.moneyText}>${mockUserData.totalEarnings}</Text>
+            <Text style={styles.moneyText}>$-</Text>
           </View>
         </View>
         <Text style={styles.dateText}>{currentDate}</Text>
@@ -241,7 +365,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
               <>
                 <Text style={styles.noOrderHeader}>No Active Deliveries</Text>
                 <Text style={styles.stepCountText}>
-                  Total Steps Today: {data?.numberOfSteps ?? 0}
+                  Total Steps Today: {totalStepsToday}
                 </Text>
                 <Text style={styles.noOrderSubtext}>
                   You're all caught up! Ready to start a new delivery?
@@ -280,6 +404,13 @@ type StatsRouteProps = {
 };
 
 const StatsRoute: React.FC<StatsRouteProps> = ({labels, data}) => {
+  if (data.length === 0) {
+    return (
+      <View style={styles.tabScene}>
+        <Text>No data available.</Text>
+      </View>
+    );
+  }
   const average = Math.round(data.reduce((a, b) => a + b, 0) / data.length);
   const best = Math.max(...data);
 
