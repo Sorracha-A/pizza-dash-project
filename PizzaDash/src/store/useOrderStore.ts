@@ -1,4 +1,6 @@
-import {create} from 'zustand';
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type OrderItem = {
   name: string;
@@ -16,100 +18,120 @@ export type Order = {
   date: string;
   pizzaMade: boolean;
   isNearCustomer?: boolean;
-  customerLocation: {latitude: number; longitude: number};
+  customerLocation: { latitude: number; longitude: number };
   status: 'incoming' | 'active' | 'past';
-  startLocation?: {latitude: number; longitude: number};
+  startLocation?: { latitude: number; longitude: number };
 };
 
 type OrderStore = {
   activeOrders: Order[];
   incomingOrders: Order[];
   pastOrders: Order[];
-  currentOrder: Order | null; // Track the current order being delivered
+  currentOrder: Order | null;
   addActiveOrder: (order: Order) => void;
   removeIncomingOrder: (id: string) => void;
   setOrderStatus: (id: string, status: 'incoming' | 'active' | 'past') => void;
   updateOrder: (id: string, updates: Partial<Order>) => void;
   updateOrderStartLocation: (
     id: string,
-    startLocation: {latitude: number; longitude: number},
-  ) => void; // New method
+    startLocation: { latitude: number; longitude: number },
+  ) => void;
   setCurrentOrder: (order: Order | null) => void;
+  clearStore: () => void;
 };
 
-export const useOrderStore = create<OrderStore>(set => ({
-  activeOrders: [],
-  incomingOrders: [],
-  pastOrders: [],
-  currentOrder: null,
+export const useOrderStore = create(
+  persist<OrderStore>(
+    (set, get) => ({
+      activeOrders: [],
+      incomingOrders: [],
+      pastOrders: [],
+      currentOrder: null,
 
-  addActiveOrder: order =>
-    set(state => ({
-      activeOrders: [...state.activeOrders, order],
-      incomingOrders: state.incomingOrders.filter(o => o.id !== order.id),
-    })),
+      addActiveOrder: order =>
+        set(state => ({
+          activeOrders: [...state.activeOrders, order],
+          incomingOrders: state.incomingOrders.filter(o => o.id !== order.id),
+        })),
 
-  removeIncomingOrder: id =>
-    set(state => ({
-      incomingOrders: state.incomingOrders.filter(order => order.id !== id),
-    })),
+      removeIncomingOrder: id =>
+        set(state => ({
+          incomingOrders: state.incomingOrders.filter(order => order.id !== id),
+        })),
 
-  setOrderStatus: (id, status) =>
-    set(state => {
-      const allOrders = [
-        ...state.incomingOrders,
-        ...state.activeOrders,
-        ...state.pastOrders,
-      ];
-      const order = allOrders.find(o => o.id === id);
+      setOrderStatus: (id, status) =>
+        set(state => {
+          const allOrders = [
+            ...state.incomingOrders,
+            ...state.activeOrders,
+            ...state.pastOrders,
+          ];
+          const order = allOrders.find(o => o.id === id);
 
-      if (order) {
-        order.status = status;
-        return {
-          incomingOrders: state.incomingOrders.filter(o => o.id !== id),
-          activeOrders:
-            status === 'active'
-              ? [...state.activeOrders, order]
-              : state.activeOrders.filter(o => o.id !== id),
-          pastOrders:
-            status === 'past'
-              ? [...state.pastOrders, order]
-              : state.pastOrders.filter(o => o.id !== id),
-        };
-      }
-      return state;
+          if (order) {
+            const updatedOrder = { ...order, status };
+            return {
+              incomingOrders:
+                status === 'incoming'
+                  ? [...state.incomingOrders.filter(o => o.id !== id), updatedOrder]
+                  : state.incomingOrders.filter(o => o.id !== id),
+              activeOrders:
+                status === 'active'
+                  ? [...state.activeOrders.filter(o => o.id !== id), updatedOrder]
+                  : state.activeOrders.filter(o => o.id !== id),
+              pastOrders:
+                status === 'past'
+                  ? [...state.pastOrders.filter(o => o.id !== id), updatedOrder]
+                  : state.pastOrders.filter(o => o.id !== id),
+            };
+          }
+          return state;
+        }),
+
+      updateOrder: (id, updates) =>
+        set(state => {
+          const index = state.activeOrders.findIndex(o => o.id === id);
+          if (index !== -1) {
+            const updatedOrder = { ...state.activeOrders[index], ...updates };
+            const newActiveOrders = [...state.activeOrders];
+            newActiveOrders[index] = updatedOrder;
+            return { activeOrders: newActiveOrders };
+          }
+          return state;
+        }),
+
+      setCurrentOrder: order =>
+        set(() => ({
+          currentOrder: order,
+        })),
+
+      updateOrderStartLocation: (id, startLocation) =>
+        set(state => {
+          const index = state.activeOrders.findIndex(o => o.id === id);
+          if (index !== -1) {
+            const updatedOrder = {
+              ...state.activeOrders[index],
+              startLocation,
+            };
+            const newActiveOrders = [...state.activeOrders];
+            newActiveOrders[index] = updatedOrder;
+            return { activeOrders: newActiveOrders };
+          }
+          return state;
+        }),
+
+      clearStore: () => {
+        set(() => ({
+          activeOrders: [],
+          incomingOrders: [],
+          pastOrders: [],
+          currentOrder: null,
+        }));
+      },
     }),
-
-  updateOrder: (id, updates) =>
-    set(state => {
-      const index = state.activeOrders.findIndex(o => o.id === id);
-      if (index !== -1) {
-        const updatedOrder = {...state.activeOrders[index], ...updates};
-        const newActiveOrders = [...state.activeOrders];
-        newActiveOrders[index] = updatedOrder;
-        console.log('newActiveOrders', newActiveOrders);
-        return {activeOrders: newActiveOrders};
-      }
-      return state;
-    }),
-
-  setCurrentOrder: order =>
-    set(() => ({
-      currentOrder: order,
-    })),
-
-  updateOrderStartLocation: (id, startLocation) =>
-    set(state => {
-      const index = state.activeOrders.findIndex(o => o.id === id);
-      if (index !== -1) {
-        const updatedOrder = {
-          ...state.activeOrders[index],
-          startLocation,
-        };
-        const newActiveOrders = [...state.activeOrders];
-        newActiveOrders[index] = updatedOrder;
-        return {activeOrders: newActiveOrders};
-      }
-      return state;
-    }),
-}));
+    {
+      name: 'order-store',
+      storage: createJSONStorage(() => AsyncStorage),
+    },
+  ),
+);
