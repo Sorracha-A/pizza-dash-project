@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import {useOrderStore, Order, OrderItem} from '../store/useOrderStore';
+import playSoundEffect from '../helper/playSoundEffect';
 
 type Ingredient = 'sauce' | 'cheese' | 'toppings';
 
@@ -35,11 +36,13 @@ const PizzaMakingGame: React.FC = ({route, navigation}: any) => {
   }, [selectedOrder]);
 
   const handleSelectOrder = (order: Order) => {
+    playSoundEffect('tab_switch');
     setSelectedOrder(order);
     setIsMinigameActive(false); // Reset the minigame state
   };
 
   const startMinigame = () => {
+    playSoundEffect('tab_switch');
     if (!selectedOrder) {
       Alert.alert('No Order Selected', 'Please select an order to make pizza.');
       return;
@@ -49,12 +52,14 @@ const PizzaMakingGame: React.FC = ({route, navigation}: any) => {
   };
 
   const addIngredient = (ingredient: Ingredient) => {
+    playSoundEffect('tab_switch');
     if (!ingredientsAdded.includes(ingredient)) {
       setIngredientsAdded(prev => [...prev, ingredient]);
     }
   };
 
   const handleCompletePizza = () => {
+    playSoundEffect('tab_switch');
     if (ingredientsAdded.length === 3) {
       setIngredientsAdded([]);
       if (currentPizzaIndex + 1 < flattenedPizzas.length) {

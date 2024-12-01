@@ -20,6 +20,7 @@ import {TabParamList} from '../navigation/TabParamList';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {useLocationStore} from '../store/useLocationStore';
 const {width} = Dimensions.get('window');
+import playSoundEffect from '../helper/playSoundEffect';
 
 const OrderScreen: React.FC = () => {
   const [index, setIndex] = useState(0);
@@ -130,6 +131,7 @@ const OrderScreen: React.FC = () => {
   };
 
   const acceptOrder = (order: Order) => {
+    playSoundEffect('tab_switch');
     if (activeOrders.length >= 3) {
       Alert.alert(
         'Limit Reached',
@@ -141,10 +143,12 @@ const OrderScreen: React.FC = () => {
   };
 
   const declineOrder = (orderId: string) => {
+    playSoundEffect('tab_switch');
     removeIncomingOrder(orderId);
   };
 
   const completeOrder = (orderId: string) => {
+    playSoundEffect('tab_switch');
     setOrderStatus(orderId, 'past');
   };
 

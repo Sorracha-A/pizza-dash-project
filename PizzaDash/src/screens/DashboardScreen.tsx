@@ -26,6 +26,8 @@ import {
   queryPedometerData,
   type CMPedometerData,
 } from '@sfcivictech/react-native-cm-pedometer';
+import { useVolumeStore } from '../store/useVolumeStore';
+
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -57,9 +59,15 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [fullDistance, setFullDistance] = useState<number>(0);
 
   const [error, setError] = useState<Error | undefined>();
+  const { isMuted, toggleMute } = useVolumeStore();
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
+
+
+  
+
+
 
   useEffect(() => {
     fetchStepsData();
@@ -69,7 +77,9 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
       if (nextAppState === 'active') {
         queryPedometerData(startOfToday, new Date())
           .then(data => setTotalStepsToday(data.numberOfSteps))
-          .catch(error => console.error('Error fetching steps on app focus:', error));
+          .catch(error =>
+            console.error('Error fetching steps on app focus:', error),
+          );
       }
     });
 
@@ -110,7 +120,10 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
       const monthlyData = await getStepsDataForLastNWeeks(4);
       setMonthlyStepsData(monthlyData);
-      await AsyncStorage.setItem('monthlyStepsData', JSON.stringify(monthlyData));
+      await AsyncStorage.setItem(
+        'monthlyStepsData',
+        JSON.stringify(monthlyData),
+      );
 
       const yearlyData = await getStepsDataForLastNMonths(12);
       setYearlyStepsData(yearlyData);
@@ -128,7 +141,10 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     }
   };
 
-  const getStepsBetweenDates = (startDate: Date, endDate: Date): Promise<number> => {
+  const getStepsBetweenDates = (
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number> => {
     return new Promise<number>((resolve, reject) => {
       queryPedometerData(startDate, endDate)
         .then(data => {
@@ -318,16 +334,21 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     <>
       <View style={styles.topSection}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
-            <Image
-              source={require('../assets/images/pizzaDash.png')}
-              style={styles.profileImage}
+          <TouchableOpacity onPress={() => navigation.navigate('OptionScreen')}>
+            <Icon
+              name="cog"
+              size={32}
+              color="#E74C3C"
+              style={styles.optionsIcon}
             />
           </TouchableOpacity>
-          <View style={styles.moneyContainer}>
-            <Icon name="money" size={24} color="#E74C3C" />
-            <Text style={styles.moneyText}>$-</Text>
-          </View>
+          <TouchableOpacity onPress={toggleMute} style={styles.volumeContainer}>
+            <Icon
+              name={isMuted ? 'volume-off' : 'volume-up'}
+              size={32}
+              color="#E74C3C"
+            />
+          </TouchableOpacity>
         </View>
         <Text style={styles.dateText}>{currentDate}</Text>
         <View style={styles.runnerSection}>
@@ -469,6 +490,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  optionsIcon: {
+    padding: 10,
+  },
+
   noOrderHeader: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -498,15 +523,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
+  // profileImage: {
+  //   width: 60,
+  //   height: 60,
+  //   borderRadius: 30,
+  // },
   moneyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  volumeContainer: {
+    padding: 10,
+    alignItems: 'center',
+  },
+
   moneyText: {
     marginLeft: 5,
     fontSize: 18,

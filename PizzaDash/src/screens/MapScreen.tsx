@@ -22,6 +22,7 @@ import {useLocationStore} from '../store/useLocationStore';
 import {TabParamList} from '../navigation/TabParamList';
 import {useOrderStore} from '../store/useOrderStore';
 import {Order} from '../store/useOrderStore'; // Ensure you have the Order type imported
+import playSoundEffect from '../helper/playSoundEffect';
 
 type MapScreenRouteProp = RouteProp<TabParamList, 'Map'>;
 
@@ -239,6 +240,7 @@ const MapScreen: React.FC = () => {
   };
 
   const handleNavigatePress = (restaurant: any) => {
+    playSoundEffect('tab_switch');
     selectedRestaurantRef.current = restaurant;
     setIsNavigatingToCustomer(false);
     setCurrentOrderId(null);
@@ -249,6 +251,7 @@ const MapScreen: React.FC = () => {
   };
 
   const stopNavigation = () => {
+    playSoundEffect('tab_switch');
     setNavigationActive(false);
     setCurrentOrder(null);
     setRouteCoords([]);
@@ -285,6 +288,7 @@ const MapScreen: React.FC = () => {
   };
 
   const navigateToPizzaGame = () => {
+    playSoundEffect('tab_switch');
     if (selectedRestaurantRef.current) {
       navigationList.navigate('PizzaMakingGame', {
         restaurant: selectedRestaurantRef.current,
@@ -439,7 +443,7 @@ const MapScreen: React.FC = () => {
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setDeliveryCompleted(false)}>
+              onPress={() =>{ setDeliveryCompleted(false); playSoundEffect('tab_switch')}}>
               <Text style={styles.modalButtonText}>Awesome!</Text>
             </TouchableOpacity>
           </View>
