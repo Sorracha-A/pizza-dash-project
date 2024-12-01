@@ -85,9 +85,48 @@ const MapScreen: React.FC = () => {
 
   // Use order store
   const updateOrder = useOrderStore(state => state.updateOrder);
+  const checkDistanceAndUpdate = (
+    currentCoords: any,
+    destinationCoords: any,
+  ) => {
+    const distance = haversine(
+      {
+        latitude: currentCoords.latitude,
+        longitude: currentCoords.longitude,
+      },
+      destinationCoords,
+      {unit: 'meter'},
+    );
+
+    if (isNavigatingToCustomerRef.current && currentOrderIdRef.current) {
+      const currentOrder = useOrderStore
+        .getState()
+        .activeOrders.find(order => order.id === currentOrderIdRef.current);
+      setCurrentOrder(currentOrder ?? null);
+
+
+
+      updateOrder(currentOrderIdRef.current, {
+        isNearCustomer: distance <= 500,
+      });
+    } else {
+      // Show "Make Pizza" button when near restaurant
+      setShowMakePizza(distance <= 500);
+    }
+  };
 
   useEffect(() => {
     requestLocation();
+
+    Geolocation.getCurrentPosition(
+      position => {
+        setLocation({...position.coords});
+      },
+      error => {
+        console.log(error);
+      },
+      {enableHighAccuracy: true},
+    );
 
     // Start watching location updates
     const watchId = Geolocation.watchPosition(
@@ -133,6 +172,11 @@ const MapScreen: React.FC = () => {
       const orderId = route.params.orderId ?? null;
       setIsNavigatingToCustomer(true);
       setCurrentOrderId(orderId);
+
+      isNavigatingToCustomerRef.current = true;
+      currentOrderIdRef.current = orderId;
+  
+
       handleNavigateToLocation(customerLocation);
       navigationTab.setParams({
         customerLocation: undefined,
@@ -154,6 +198,27 @@ const MapScreen: React.FC = () => {
       setNavigationWatchId(null);
     }
 
+    const processCurrentLocation = (currentCoords: any) => {
+      setLocation({...currentCoords});
+      getRoute(
+        currentCoords,
+        destinationCoords.latitude,
+        destinationCoords.longitude,
+      );
+      checkDistanceAndUpdate(currentCoords, destinationCoords);
+    };
+
+    if (location) {
+      processCurrentLocation(location);
+    } else {
+      // If location is not available, get current position
+      Geolocation.getCurrentPosition(
+        position => processCurrentLocation(position.coords),
+        error => console.log(error),
+        {enableHighAccuracy: true},
+      );
+    }
+
     // Start watching position specifically for navigation
     const id = Geolocation.watchPosition(
       position => {
@@ -164,39 +229,9 @@ const MapScreen: React.FC = () => {
           destinationCoords.latitude,
           destinationCoords.longitude,
         );
-
-        // Calculate distance to destination
-        const distance = haversine(
-          {
-            latitude: currentCoords.latitude,
-            longitude: currentCoords.longitude,
-          },
-          destinationCoords,
-          {unit: 'meter'},
-        );
-
-        if (isNavigatingToCustomerRef.current && currentOrderIdRef.current) {
-          const currentOrder = useOrderStore
-            .getState()
-            .activeOrders.find(order => order.id === currentOrderIdRef.current);
-          setCurrentOrder(currentOrder ?? null);
-          if (distance <= 300000) {
-            updateOrder(currentOrderIdRef.current, {
-              isNearCustomer: true,
-            });
-          } else {
-            updateOrder(currentOrderIdRef.current, {
-              isNearCustomer: false,
-            });
-          }
-        } else {
-          // Show "Make Pizza" button when near restaurant
-          setShowMakePizza(distance <= 30000);
-        }
+        checkDistanceAndUpdate(currentCoords, destinationCoords);
       },
-      error => {
-        console.log(error);
-      },
+      error => console.log(error),
       {enableHighAccuracy: true, distanceFilter: 10},
     );
 

@@ -195,9 +195,9 @@ const OrderScreen: React.FC = () => {
             if (order.isNearCustomer) {
               completeOrder(order.id);
             } else if (order.pizzaMade && order.customerLocation) {
-              if (location){
-              updateStartLocation(order.id, location);
-              console.log("cus",order.startLocation);
+              if (location) {
+                updateStartLocation(order.id, location);
+                console.log('cus', order.startLocation);
               }
               navigation.navigate('Map', {
                 customerLocation: order.customerLocation,
@@ -232,9 +232,9 @@ const OrderScreen: React.FC = () => {
     active: () => (
       <FlatList
         data={activeOrders}
-        extraData={activeOrders}
         keyExtractor={item => item.id}
         renderItem={({item}) => renderOrderItem(item, true)}
+        extraData={activeOrders} // Ensure FlatList re-renders when activeOrders change
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No active orders.</Text>

@@ -87,6 +87,7 @@ export const useOrderStore = create<OrderStore>(set => ({
         const updatedOrder = {...state.activeOrders[index], ...updates};
         const newActiveOrders = [...state.activeOrders];
         newActiveOrders[index] = updatedOrder;
+        console.log('newActiveOrders', newActiveOrders);
         return {activeOrders: newActiveOrders};
       }
       return state;
