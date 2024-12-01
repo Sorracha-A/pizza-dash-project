@@ -1,7 +1,7 @@
 export type RootStackParamList = {
   Landing: undefined;
   Main: undefined;
-  EditProfile: undefined;
+  OptionScreen: undefined;
   PizzaMakingGame: {restaurant: any} | undefined;
   
 };

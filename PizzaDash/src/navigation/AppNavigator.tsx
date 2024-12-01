@@ -8,11 +8,12 @@ import LandingScreen from '../screens/LandingScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import MapScreen from '../screens/MapScreen';
 import OrderScreen from '../screens/OrderScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
+import OptionScreen from '../screens/OptionScreen';
 import PizzaMakingGame from '../screens/PizzaMakingGame';
 
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import playSoundEffect from '../helper/playSoundEffect';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -38,15 +39,30 @@ const TabNavigator = () => (
         return <Icon name={iconName} size={size} color={color} />;
       },
     })}>
-    <Tab.Screen name="Dashboard" component={DashboardScreen} />
-    <Tab.Screen name="Map" component={MapScreen} />
+    <Tab.Screen
+      name="Dashboard"
+      component={DashboardScreen}
+      listeners={{
+        tabPress: () => playSoundEffect('tab_switch'),
+      }}
+    />
+    <Tab.Screen
+      name="Map"
+      component={MapScreen}
+      listeners={{
+        tabPress: () => playSoundEffect('tab_switch'),
+      }}
+    />
     <Tab.Screen
       name="Order"
       component={OrderScreen}
       options={{
-        headerShown: true,
+        headerShown: false,
         headerTitle: 'Order',
         headerTitleAlign: 'center',
+      }}
+      listeners={{
+        tabPress: () => playSoundEffect('tab_switch'),
       }}
     />
   </Tab.Navigator>
@@ -59,8 +75,12 @@ const AppNavigator = () => (
       screenOptions={{headerShown: false}}>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="PizzaMakingGame" component={PizzaMakingGame} options={{headerShown: true}}/>
+      <Stack.Screen name="OptionScreen" component={OptionScreen} />
+      <Stack.Screen
+        name="PizzaMakingGame"
+        component={PizzaMakingGame}
+        options={{headerShown: true}}
+      />
     </Stack.Navigator>
   </NavigationContainer>
 );
