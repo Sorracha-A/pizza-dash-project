@@ -28,6 +28,7 @@ import {
   type CMPedometerData,
 } from '@sfcivictech/react-native-cm-pedometer';
 import {useVolumeStore} from '../store/useVolumeStore';
+import LevelDisplay from '../components/LevelDisplay';
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -341,13 +342,15 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
       <View style={styles.topSection}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.navigate('OptionScreen')}>
-            <Icon
-              name="cog"
-              size={32}
-              color="#E74C3C"
-              style={styles.optionsIcon}
-            />
+            <Icon name="gear" size={24} color="#E74C3C" />
           </TouchableOpacity>
+          <View style={styles.statsContainer}>
+            <View style={styles.currencyContainer}>
+              <Icon name="dollar" size={16} color="#FFD700" />
+              <Text style={styles.currencyText}>{balance}</Text>
+            </View>
+            <LevelDisplay />
+          </View>
           <TouchableOpacity onPress={toggleMute} style={styles.volumeContainer}>
             <Icon
               name={isMuted ? 'volume-off' : 'volume-up'}
@@ -355,10 +358,6 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
               color="#E74C3C"
             />
           </TouchableOpacity>
-          <View style={styles.currencyContainer}>
-            <Icon name="dollar" size={16} color="#FFD700" />
-            <Text style={styles.currencyText}>{balance}</Text>
-          </View>
         </View>
         <Text style={styles.dateText}>{currentDate}</Text>
         <View style={styles.runnerSection}>
@@ -607,10 +606,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    alignItems: 'center',
   },
   statsItem: {
     alignItems: 'center',

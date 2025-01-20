@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrencyStore } from './useCurrencyStore';
+import { useExperienceStore } from './useExperienceStore';
 
 export type OrderItem = {
   name: string;
@@ -72,10 +73,17 @@ export const useOrderStore = create(
           if (order) {
             const updatedOrder = { ...order, status };
             
-            // Add currency reward when order is completed
+            // Add rewards when order is completed
             if (status === 'past') {
+              // Add currency
               const reward = Math.floor(order.total + order.deliveryFee + order.tip);
               useCurrencyStore.getState().addCurrency(reward);
+              
+              // Add experience points (base XP + bonus for order value)
+              const baseXP = 50;
+              const valueBonus = Math.floor(order.total / 10);
+              const totalXP = baseXP + valueBonus;
+              useExperienceStore.getState().addExperience(totalXP);
             }
 
             return {
