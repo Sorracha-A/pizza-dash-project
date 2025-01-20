@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCurrencyStore } from './useCurrencyStore';
 
 export type OrderItem = {
   name: string;
@@ -70,6 +71,13 @@ export const useOrderStore = create(
 
           if (order) {
             const updatedOrder = { ...order, status };
+            
+            // Add currency reward when order is completed
+            if (status === 'past') {
+              const reward = Math.floor(order.total + order.deliveryFee + order.tip);
+              useCurrencyStore.getState().addCurrency(reward);
+            }
+
             return {
               incomingOrders:
                 status === 'incoming'

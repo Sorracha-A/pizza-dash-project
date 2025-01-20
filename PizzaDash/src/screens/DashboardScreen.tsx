@@ -19,6 +19,7 @@ import {TabView, TabBar} from 'react-native-tab-view';
 import {LineChart} from 'react-native-chart-kit';
 import {useOrderStore} from '../store/useOrderStore';
 import {useLocationStore} from '../store/useLocationStore';
+import {useCurrencyStore} from '../store/useCurrencyStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   startUpdates,
@@ -26,8 +27,7 @@ import {
   queryPedometerData,
   type CMPedometerData,
 } from '@sfcivictech/react-native-cm-pedometer';
-import { useVolumeStore } from '../store/useVolumeStore';
-
+import {useVolumeStore} from '../store/useVolumeStore';
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -59,15 +59,11 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [fullDistance, setFullDistance] = useState<number>(0);
 
   const [error, setError] = useState<Error | undefined>();
-  const { isMuted, toggleMute } = useVolumeStore();
+  const {isMuted, toggleMute} = useVolumeStore();
+  const balance = useCurrencyStore(state => state.balance);
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-
-
-  
-
-
 
   useEffect(() => {
     fetchStepsData();
@@ -219,6 +215,19 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     return stepsData;
   };
 
+  const getLastNDaysLabels = (n: number): string[] => {
+    const labels = [];
+    const today = new Date();
+
+    for (let i = n - 1; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(today.getDate() - i);
+      labels.push(day.toLocaleString('en-US', {weekday: 'short'})); // 'Sun', 'Mon', etc.
+    }
+
+    return labels;
+  };
+
   const calculateDistance = (
     lat1: number,
     lon1: number,
@@ -291,10 +300,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
     switch (route.key) {
       case 'daily':
         return (
-          <StatsRoute
-            labels={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']}
-            data={dailyStepsData}
-          />
+          <StatsRoute labels={getLastNDaysLabels(7)} data={dailyStepsData} />
         );
       case 'monthly':
         return (
@@ -331,7 +337,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const currentDate = new Date().toLocaleDateString();
 
   return (
-    <>
+    <View style={styles.container}>
       <View style={styles.topSection}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.navigate('OptionScreen')}>
@@ -349,6 +355,10 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
               color="#E74C3C"
             />
           </TouchableOpacity>
+          <View style={styles.currencyContainer}>
+            <Icon name="dollar" size={16} color="#FFD700" />
+            <Text style={styles.currencyText}>{balance}</Text>
+          </View>
         </View>
         <Text style={styles.dateText}>{currentDate}</Text>
         <View style={styles.runnerSection}>
@@ -415,7 +425,7 @@ const DashboardScreen: React.FC<Props> = ({navigation}) => {
           )}
         />
       </View>
-    </>
+    </View>
   );
 };
 
@@ -634,6 +644,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  currencyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2C3E50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  currencyText: {
+    marginLeft: 5,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFD700',
   },
 });
 

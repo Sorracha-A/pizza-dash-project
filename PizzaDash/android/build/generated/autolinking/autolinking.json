@@ -3,6 +3,31 @@
   "reactNativePath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native",
   "reactNativeVersion": "0.75",
   "dependencies": {
+    "@react-native-async-storage/async-storage": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-async-storage/async-storage",
+      "name": "@react-native-async-storage/async-storage",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-async-storage/async-storage/RNCAsyncStorage.podspec",
+          "version": "2.1.0",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": {
+          "sourceDir": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-async-storage/async-storage/android",
+          "packageImportPath": "import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;",
+          "packageInstance": "new AsyncStoragePackage()",
+          "buildTypes": [],
+          "libraryName": "rnasyncstorage",
+          "componentDescriptors": [],
+          "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cxxModuleCMakeListsModuleName": null,
+          "cxxModuleCMakeListsPath": null,
+          "cxxModuleHeaderName": null,
+          "isPureCxxDependency": false
+        }
+      }
+    },
     "@react-native-community/geolocation": {
       "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/geolocation",
       "name": "@react-native-community/geolocation",
@@ -26,6 +51,46 @@
           "cxxModuleHeaderName": null,
           "isPureCxxDependency": false
         }
+      }
+    },
+    "@react-native-community/slider": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/slider",
+      "name": "@react-native-community/slider",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/slider/react-native-slider.podspec",
+          "version": "4.5.5",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": {
+          "sourceDir": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/slider/android",
+          "packageImportPath": "import com.reactnativecommunity.slider.ReactSliderPackage;",
+          "packageInstance": "new ReactSliderPackage()",
+          "buildTypes": [],
+          "libraryName": "RNCSlider",
+          "componentDescriptors": [
+            "RNCSliderComponentDescriptor"
+          ],
+          "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/slider/android/src/main/jni/CMakeLists.txt",
+          "cxxModuleCMakeListsModuleName": null,
+          "cxxModuleCMakeListsPath": null,
+          "cxxModuleHeaderName": null,
+          "isPureCxxDependency": false
+        }
+      }
+    },
+    "@sfcivictech/react-native-cm-pedometer": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@sfcivictech/react-native-cm-pedometer",
+      "name": "@sfcivictech/react-native-cm-pedometer",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@sfcivictech/react-native-cm-pedometer/react-native-cm-pedometer.podspec",
+          "version": "1.0.0",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": null
       }
     },
     "react-native-gesture-handler": {
@@ -208,6 +273,30 @@
             "RNSModalScreenComponentDescriptor"
           ],
           "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+          "cxxModuleCMakeListsModuleName": null,
+          "cxxModuleCMakeListsPath": null,
+          "cxxModuleHeaderName": null,
+          "isPureCxxDependency": false
+        }
+      }
+    },
+    "react-native-sound": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-sound",
+      "name": "react-native-sound",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-sound/RNSound.podspec",
+          "version": "0.11.2",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": {
+          "sourceDir": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-sound/android",
+          "packageImportPath": "import com.zmxv.RNSound.RNSoundPackage;",
+          "packageInstance": "new RNSoundPackage()",
+          "buildTypes": [],
+          "componentDescriptors": [],
+          "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-sound/android/build/generated/source/codegen/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,

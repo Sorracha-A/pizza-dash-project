@@ -3,6 +3,7 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator, Header} from '@react-navigation/stack';
+import {View} from 'react-native';
 
 import LandingScreen from '../screens/LandingScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -10,6 +11,7 @@ import MapScreen from '../screens/MapScreen';
 import OrderScreen from '../screens/OrderScreen';
 import OptionScreen from '../screens/OptionScreen';
 import PizzaMakingGame from '../screens/PizzaMakingGame';
+import CurrencyDisplay from '../components/CurrencyDisplay';
 
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -23,6 +25,7 @@ const TabNavigator = () => (
     initialRouteName="Dashboard"
     screenOptions={({route}) => ({
       headerShown: false,
+      headerRight: () => <CurrencyDisplay />,
       tabBarActiveTintColor: '#E74C3C',
       tabBarInactiveTintColor: 'gray',
       tabBarIcon: ({color, size}) => {
@@ -57,7 +60,7 @@ const TabNavigator = () => (
       name="Order"
       component={OrderScreen}
       options={{
-        headerShown: false,
+        headerShown: true,
         headerTitle: 'Order',
         headerTitleAlign: 'center',
       }}
@@ -74,12 +77,16 @@ const AppNavigator = () => (
       initialRouteName="Landing"
       screenOptions={{headerShown: false}}>
       <Stack.Screen name="Landing" component={LandingScreen} />
-      <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen
+        name="Main"
+        component={TabNavigator}
+        options={{gestureEnabled: false}}
+      />
       <Stack.Screen name="OptionScreen" component={OptionScreen} />
       <Stack.Screen
         name="PizzaMakingGame"
         component={PizzaMakingGame}
-        options={{headerShown: true}}
+        options={{headerShown: true, gestureEnabled: false}}
       />
     </Stack.Navigator>
   </NavigationContainer>
