@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrencyStore } from './useCurrencyStore';
 import { useExperienceStore } from './useExperienceStore';
+import { useCustomizationStore } from './useCustomizationStore';
+import { getDistance } from 'geolib';
 
 export type OrderItem = {
   name: string;
@@ -14,14 +16,19 @@ export type Order = {
   customerName: string;
   customerAvatar: string;
   items: OrderItem[];
+  customerLocation: {
+    latitude: number;
+    longitude: number;
+  };
   total: number;
   deliveryFee: number;
   tip: number;
   date: string;
-  pizzaMade: boolean;
-  isNearCustomer?: boolean;
-  customerLocation: { latitude: number; longitude: number };
   status: 'incoming' | 'active' | 'past';
+  pizzaMade: boolean;
+  timestamp: number;
+  distance: number; // in meters
+  isNearCustomer?: boolean;
   startLocation?: { latitude: number; longitude: number };
 };
 
@@ -40,6 +47,11 @@ type OrderStore = {
   ) => void;
   setCurrentOrder: (order: Order | null) => void;
   clearStore: () => void;
+  canAcceptMoreOrders: () => boolean;
+  getActiveOrdersCount: () => number;
+  calculateOrderDistance: (order: Order, currentLocation: { latitude: number; longitude: number }) => number;
+  isWithinDeliveryRange: (distance: number) => boolean;
+  getEarningsMultiplier: () => number;
 };
 
 export const useOrderStore = create(
@@ -50,11 +62,60 @@ export const useOrderStore = create(
       pastOrders: [],
       currentOrder: null,
 
+      getActiveOrdersCount: () => {
+        return get().activeOrders.length;
+      },
+
+      canAcceptMoreOrders: () => {
+        const customization = useCustomizationStore.getState();
+        const selectedVehicle = customization.vehicles.find(
+          v => v.id === customization.selectedVehicle,
+        );
+        const maxCapacity = selectedVehicle?.stats?.orderCapacity || 1;
+        return get().activeOrders.length < maxCapacity;
+      },
+
+      calculateOrderDistance: (order: Order, currentLocation: { latitude: number; longitude: number }) => {
+        return getDistance(
+          currentLocation,
+          order.customerLocation,
+        );
+      },
+
+      isWithinDeliveryRange: (distance: number) => {
+        const customization = useCustomizationStore.getState();
+        const selectedVehicle = customization.vehicles.find(
+          v => v.id === customization.selectedVehicle,
+        );
+        const maxRange = selectedVehicle?.stats?.deliveryRange || 1000;
+        return distance <= maxRange;
+      },
+
+      getEarningsMultiplier: () => {
+        const customization = useCustomizationStore.getState();
+        const selectedVehicle = customization.vehicles.find(
+          v => v.id === customization.selectedVehicle,
+        );
+        const selectedCharacter = customization.characters.find(
+          c => c.id === customization.selectedCharacter,
+        );
+        
+        const vehicleBonus = selectedVehicle?.stats?.earnings || 0;
+        const characterBonus = selectedCharacter?.stats?.earnings || 0;
+        
+        return 1 + (vehicleBonus + characterBonus) / 100;
+      },
+
       addActiveOrder: order =>
-        set(state => ({
-          activeOrders: [...state.activeOrders, order],
-          incomingOrders: state.incomingOrders.filter(o => o.id !== order.id),
-        })),
+        set(state => {
+          if (!get().canAcceptMoreOrders()) {
+            return state;
+          }
+          return {
+            activeOrders: [...state.activeOrders, order],
+            incomingOrders: state.incomingOrders.filter(o => o.id !== order.id),
+          };
+        }),
 
       removeIncomingOrder: id =>
         set(state => ({
@@ -75,14 +136,18 @@ export const useOrderStore = create(
             
             // Add rewards when order is completed
             if (status === 'past') {
-              // Add currency
-              const reward = Math.floor(order.total + order.deliveryFee + order.tip);
-              useCurrencyStore.getState().addCurrency(reward);
+              const earningsMultiplier = get().getEarningsMultiplier();
+              const baseReward = Math.floor(order.total);
+              const totalReward = Math.floor(baseReward * earningsMultiplier);
               
-              // Add experience points (base XP + bonus for order value)
+              // Add currency with bonus
+              useCurrencyStore.getState().addCurrency(totalReward);
+              
+              // Add experience points (base XP + bonus for order value and distance)
               const baseXP = 50;
               const valueBonus = Math.floor(order.total / 10);
-              const totalXP = baseXP + valueBonus;
+              const distanceBonus = order.distance ? Math.floor(order.distance / 100) : 0;
+              const totalXP = baseXP + valueBonus + distanceBonus;
               useExperienceStore.getState().addExperience(totalXP);
             }
 
@@ -116,11 +181,6 @@ export const useOrderStore = create(
           return state;
         }),
 
-      setCurrentOrder: order =>
-        set(() => ({
-          currentOrder: order,
-        })),
-
       updateOrderStartLocation: (id, startLocation) =>
         set(state => {
           const index = state.activeOrders.findIndex(o => o.id === id);
@@ -128,6 +188,10 @@ export const useOrderStore = create(
             const updatedOrder = {
               ...state.activeOrders[index],
               startLocation,
+              distance: getDistance(
+                startLocation,
+                state.activeOrders[index].customerLocation,
+              ),
             };
             const newActiveOrders = [...state.activeOrders];
             newActiveOrders[index] = updatedOrder;
@@ -136,14 +200,15 @@ export const useOrderStore = create(
           return state;
         }),
 
-      clearStore: () => {
-        set(() => ({
+      setCurrentOrder: (order: Order | null) => set({ currentOrder: order }),
+
+      clearStore: () =>
+        set({
           activeOrders: [],
           incomingOrders: [],
           pastOrders: [],
           currentOrder: null,
-        }));
-      },
+        }),
     }),
     {
       name: 'order-store',

@@ -11,6 +11,7 @@ import MapScreen from '../screens/MapScreen';
 import OrderScreen from '../screens/OrderScreen';
 import OptionScreen from '../screens/OptionScreen';
 import PizzaMakingGame from '../screens/PizzaMakingGame';
+import CustomizationScreen from '../screens/CustomizationScreen';
 import CurrencyDisplay from '../components/CurrencyDisplay';
 
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -25,7 +26,6 @@ const TabNavigator = () => (
     initialRouteName="Dashboard"
     screenOptions={({route}) => ({
       headerShown: false,
-      headerRight: () => <CurrencyDisplay />,
       tabBarActiveTintColor: '#E74C3C',
       tabBarInactiveTintColor: 'gray',
       tabBarIcon: ({color, size}) => {
@@ -37,6 +37,8 @@ const TabNavigator = () => (
           iconName = 'map';
         } else if (route.name === 'Order') {
           iconName = 'shopping-cart';
+        } else if (route.name === 'Customize') {
+          iconName = 'paint-brush';
         }
 
         return <Icon name={iconName} size={size} color={color} />;
@@ -64,6 +66,13 @@ const TabNavigator = () => (
         headerTitle: 'Order',
         headerTitleAlign: 'center',
       }}
+      listeners={{
+        tabPress: () => playSoundEffect('tab_switch'),
+      }}
+    />
+    <Tab.Screen
+      name="Customize"
+      component={CustomizationScreen}
       listeners={{
         tabPress: () => playSoundEffect('tab_switch'),
       }}

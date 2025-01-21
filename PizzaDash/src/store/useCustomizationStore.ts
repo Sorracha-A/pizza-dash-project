@@ -1,6 +1,7 @@
 import {create} from 'zustand';
 import {persist, createJSONStorage} from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useCurrencyStore} from './useCurrencyStore';
 
 export interface CustomizationItem {
   id: string;
@@ -10,9 +11,9 @@ export interface CustomizationItem {
   price: number;
   image: string;
   stats?: {
-    speed?: number;
-    handling?: number;
-    acceleration?: number;
+    orderCapacity?: number; // How many orders can be carried at once
+    earnings?: number; // Bonus earnings percentage
+    deliveryRange?: number; // Maximum delivery distance bonus
   };
   unlockLevel?: number;
 }
@@ -38,22 +39,22 @@ const defaultVehicles: CustomizationItem[] = [
     price: 0,
     image: 'bicycle',
     stats: {
-      speed: 50,
-      handling: 70,
-      acceleration: 60,
+      orderCapacity: 1,
+      earnings: 0,
+      deliveryRange: 1000, // meters
     },
   },
   {
     id: 'scooter_1',
-    name: 'Speedy Scooter',
+    name: 'Delivery Scooter',
     type: 'vehicle',
-    description: 'Perfect for quick deliveries',
+    description: 'Carry more orders at once',
     price: 1000,
     image: 'motorcycle',
     stats: {
-      speed: 75,
-      handling: 65,
-      acceleration: 80,
+      orderCapacity: 2,
+      earnings: 5, // 5% bonus
+      deliveryRange: 1500,
     },
     unlockLevel: 2,
   },
@@ -61,13 +62,13 @@ const defaultVehicles: CustomizationItem[] = [
     id: 'car_1',
     name: 'Pizza Mobile',
     type: 'vehicle',
-    description: 'Deliver in style',
+    description: 'Maximum delivery efficiency',
     price: 5000,
     image: 'car',
     stats: {
-      speed: 90,
-      handling: 85,
-      acceleration: 75,
+      orderCapacity: 3,
+      earnings: 15, // 15% bonus
+      deliveryRange: 2000,
     },
     unlockLevel: 5,
   },
@@ -81,23 +82,32 @@ const defaultCharacters: CustomizationItem[] = [
     description: 'Fresh and ready to deliver',
     price: 0,
     image: 'user',
+    stats: {
+      earnings: 0,
+    },
   },
   {
     id: 'char_2',
-    name: 'Speed Demon',
+    name: 'Expert Driver',
     type: 'character',
-    description: 'Known for quick deliveries',
+    description: 'Earns bonus tips',
     price: 2000,
     image: 'rocket',
+    stats: {
+      earnings: 10, // 10% bonus
+    },
     unlockLevel: 3,
   },
   {
     id: 'char_3',
     name: 'Pizza Master',
     type: 'character',
-    description: 'The legendary delivery expert',
+    description: 'Maximum earnings potential',
     price: 4000,
     image: 'star',
+    stats: {
+      earnings: 25, // 25% bonus
+    },
     unlockLevel: 6,
   },
 ];

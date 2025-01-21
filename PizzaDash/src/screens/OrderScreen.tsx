@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   SafeAreaView,
   View,
@@ -19,8 +19,11 @@ import {RouteProp, useNavigation} from '@react-navigation/native';
 import {TabParamList} from '../navigation/TabParamList';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {useLocationStore} from '../store/useLocationStore';
-const {width} = Dimensions.get('window');
+import {useCustomizationStore} from '../store/useCustomizationStore';
+import {useGameSettingsStore} from '../store/useGameSettingsStore';
 import playSoundEffect from '../helper/playSoundEffect';
+
+const {width} = Dimensions.get('window');
 
 const OrderScreen: React.FC = () => {
   const [index, setIndex] = useState(0);
@@ -46,9 +49,48 @@ const OrderScreen: React.FC = () => {
     activeOrders,
     pastOrders,
     addActiveOrder,
+    canAcceptMoreOrders,
+    calculateOrderDistance,
+    isWithinDeliveryRange,
+    getActiveOrdersCount,
     removeIncomingOrder,
     setOrderStatus,
   } = useOrderStore();
+
+  const selectedVehicle = useCustomizationStore(state =>
+    state.vehicles.find(v => v.id === state.selectedVehicle),
+  );
+
+  const maxCustomerDistance = useGameSettingsStore(
+    state => state.maxCustomerDistance,
+  );
+
+  const handleAcceptOrder = (order: Order) => {
+    if (!location) {
+      Alert.alert('Error', 'Cannot accept order: Location not available');
+      return;
+    }
+
+    const distance = calculateOrderDistance(order, location);
+
+    if (!isWithinDeliveryRange(distance)) {
+      Alert.alert(
+        'Out of Range',
+        'This delivery location is too far for your current vehicle.',
+      );
+      return;
+    }
+
+    if (!canAcceptMoreOrders()) {
+      Alert.alert(
+        'Vehicle Full',
+        `Your ${selectedVehicle?.name} can only carry ${selectedVehicle?.stats?.orderCapacity} order(s) at a time.`,
+      );
+      return;
+    }
+
+    addActiveOrder(order);
+  };
 
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
   const updateStartLocation = (
@@ -80,6 +122,61 @@ const OrderScreen: React.FC = () => {
     };
   };
 
+  const getDistance = (
+    loc1: {latitude: number; longitude: number},
+    loc2: {latitude: number; longitude: number},
+  ) => {
+    const lat1 = (loc1.latitude * Math.PI) / 180;
+    const lon1 = (loc1.longitude * Math.PI) / 180;
+    const lat2 = (loc2.latitude * Math.PI) / 180;
+    const lon2 = (loc2.longitude * Math.PI) / 180;
+
+    const dlat = lat2 - lat1;
+    const dlon = lon2 - lon1;
+
+    const a =
+      Math.sin(dlat / 2) * Math.sin(dlat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) * Math.sin(dlon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const R = 6371; // Radius of the Earth in kilometers
+    const d = R * c * 1000; // Distance in meters
+
+    return d;
+  };
+
+  const generateCustomerName = () => {
+    const names = [
+      'John',
+      'Jane',
+      'Bob',
+      'Alice',
+      'Mike',
+      'Emma',
+      'Tom',
+      'Olivia',
+    ];
+    const surnames = [
+      'Doe',
+      'Smith',
+      'Johnson',
+      'Williams',
+      'Jones',
+      'Brown',
+      'Davis',
+      'Miller',
+    ];
+
+    return `${names[Math.floor(Math.random() * names.length)]} ${
+      surnames[Math.floor(Math.random() * surnames.length)]
+    }`;
+  };
+
+  const generateCustomerAvatar = () => {
+    return `https://i.pravatar.cc/150?img=${Math.floor(
+      Math.random() * 70 + 1,
+    )}`;
+  };
+
   useEffect(() => {
     const generateRandomOrder = () => {
       if (
@@ -90,24 +187,49 @@ const OrderScreen: React.FC = () => {
       )
         return;
 
-      const customerLocation = generateRandomPoint(location, 100);
+      const customerLocation = generateRandomPoint(
+        location,
+        maxCustomerDistance,
+      );
+      const distance = getDistance(
+        {latitude: location.latitude, longitude: location.longitude},
+        {
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+        },
+      );
+
+      // Base delivery fee is $2, plus $1 per 100m
+      const deliveryFee = 2 + Math.floor(distance / 100);
+      const tip = Math.floor(Math.random() * 5) + 1; // Random tip $1-$5
+      const total = deliveryFee + tip;
+      const timestamp = new Date().getTime();
 
       const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
-        customerName: `Customer ${Math.floor(Math.random() * 100)}`,
-        customerAvatar:
-          'https://i.pravatar.cc/150?img=' + Math.floor(Math.random() * 70 + 1),
+        customerName: generateCustomerName(),
+        customerAvatar: generateCustomerAvatar(),
         items: [
           {name: 'Margherita Pizza', quantity: 1},
           {name: 'Pepperoni Pizza', quantity: 2},
         ],
-        total: parseFloat((Math.random() * 50 + 10).toFixed(2)),
-        deliveryFee: 5.0,
-        tip: parseFloat((Math.random() * 10).toFixed(2)),
+        customerLocation: {
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+        },
+        total,
+        deliveryFee,
+        tip,
         date: moment().format('MMMM Do YYYY, h:mm:ss a'),
         status: 'incoming',
         pizzaMade: false,
-        customerLocation,
+        timestamp,
+        distance,
+        isNearCustomer: false,
+        startLocation: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
       };
 
       useOrderStore.setState(state => ({
@@ -130,18 +252,6 @@ const OrderScreen: React.FC = () => {
     setIsAcceptingOrders(prev => !prev);
   };
 
-  const acceptOrder = (order: Order) => {
-    playSoundEffect('tab_switch');
-    if (activeOrders.length >= 3) {
-      Alert.alert(
-        'Limit Reached',
-        'You cannot accept more than 3 active orders.',
-      );
-      return;
-    }
-    addActiveOrder({...order, status: 'active'});
-  };
-
   const declineOrder = (orderId: string) => {
     playSoundEffect('tab_switch');
     removeIncomingOrder(orderId);
@@ -162,6 +272,12 @@ const OrderScreen: React.FC = () => {
         <View style={{flex: 1, marginLeft: 10}}>
           <Text style={styles.customerName}>{order.customerName}</Text>
           <Text style={styles.orderDate}>{order.date}</Text>
+          {location && (
+            <Text style={styles.distanceText}>
+              {(calculateOrderDistance(order, location) / 1000).toFixed(1)}km
+              away
+            </Text>
+          )}
         </View>
         <Text style={styles.orderTotal}>${order.total.toFixed(2)}</Text>
       </View>
@@ -173,20 +289,22 @@ const OrderScreen: React.FC = () => {
         ))}
       </View>
       <View style={styles.orderFooter}>
-        <Text style={styles.orderFee}>
-          Delivery Fee: ${order.deliveryFee.toFixed(2)}
-        </Text>
-        <Text style={styles.orderTip}>Tip: ${order.tip.toFixed(2)}</Text>
+        <View style={styles.feeContainer}>
+          <Text style={styles.orderFee}>
+            Delivery Fee: ${order.deliveryFee.toFixed(2)}
+          </Text>
+          <Text style={styles.orderTip}>Tip: ${order.tip.toFixed(2)}</Text>
+        </View>
       </View>
-      {order.status === 'incoming' && (
+      {!isActiveOrder && order.status === 'incoming' && !order.pizzaMade && (
         <View style={styles.orderActions}>
           <TouchableOpacity
-            style={[styles.button, {backgroundColor: '#27ae60'}]}
-            onPress={() => acceptOrder(order)}>
+            style={[styles.actionButton, styles.acceptButton]}
+            onPress={() => handleAcceptOrder(order)}>
             <Text style={styles.buttonText}>Accept</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.button, {backgroundColor: '#c0392b'}]}
+            style={[styles.actionButton, styles.declineButton]}
             onPress={() => declineOrder(order.id)}>
             <Text style={styles.buttonText}>Decline</Text>
           </TouchableOpacity>
@@ -357,20 +475,51 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   orderFooter: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  feeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+    alignItems: 'center',
+    marginBottom: 5,
   },
   orderFee: {
-    fontSize: 16,
+    fontSize: 14,
+    color: '#666',
   },
   orderTip: {
+    fontSize: 14,
+    color: '#666',
+  },
+  totalText: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#27ae60',
+    textAlign: 'right',
   },
   orderActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+  },
+  actionButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  acceptButton: {
+    backgroundColor: '#27ae60',
+  },
+  declineButton: {
+    backgroundColor: '#c0392b',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   button: {
     flex: 1,
@@ -379,15 +528,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 5,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-  },
   emptyText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 18,
     color: 'gray',
+  },
+  distanceText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });
 

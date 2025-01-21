@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, TextInput, Alert } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { useVolumeStore } from '../store/useVolumeStore';
-import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useVolumeStore } from '../store/useVolumeStore';
+import { useGameSettingsStore } from '../store/useGameSettingsStore';
+import { useNavigation } from '@react-navigation/native';
 
 const OptionScreen: React.FC = () => {
   const {
@@ -12,10 +13,12 @@ const OptionScreen: React.FC = () => {
     setMusicVolume,
     setSfxVolume,
   } = useVolumeStore();
+  const { maxCustomerDistance, setMaxCustomerDistance } = useGameSettingsStore();
   const navigation = useNavigation();
 
   const [localMusicVolume, setLocalMusicVolume] = useState(musicVolume);
   const [localSfxVolume, setLocalSfxVolume] = useState(sfxVolume);
+  const [distanceInput, setDistanceInput] = useState(maxCustomerDistance.toString());
 
   useEffect(() => {
     setLocalMusicVolume(musicVolume);
@@ -24,6 +27,25 @@ const OptionScreen: React.FC = () => {
   useEffect(() => {
     setLocalSfxVolume(sfxVolume);
   }, [sfxVolume]);
+
+  const handleDistanceChange = (text: string) => {
+    setDistanceInput(text);
+    const distance = parseInt(text);
+    if (!isNaN(distance) && distance >= 100 && distance <= 10000) {
+      setMaxCustomerDistance(distance);
+    }
+  };
+
+  const validateDistance = () => {
+    const distance = parseInt(distanceInput);
+    if (isNaN(distance) || distance < 100 || distance > 10000) {
+      Alert.alert(
+        'Invalid Distance',
+        'Please enter a distance between 100m and 10000m',
+      );
+      setDistanceInput(maxCustomerDistance.toString());
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
@@ -70,6 +92,25 @@ const OptionScreen: React.FC = () => {
             thumbTintColor="#E74C3C"
           />
         </View>
+
+        {/* Max Customer Distance */}
+        <View style={styles.optionContainer}>
+          <Text style={styles.optionLabel}>Max Customer Distance (m)</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={distanceInput}
+              onChangeText={handleDistanceChange}
+              onBlur={validateDistance}
+              keyboardType="numeric"
+              placeholder="100-10000"
+            />
+            <Text style={styles.unitText}>m</Text>
+          </View>
+          <Text style={styles.helpText}>
+            Set the maximum distance for customer orders (100m - 10km)
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -108,5 +149,27 @@ const styles = StyleSheet.create({
   slider: {
     width: '100%',
     height: 40,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 5,
+    padding: 8,
+    width: 100,
+    marginRight: 5,
+    textAlign: 'right',
+  },
+  unitText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
 });
