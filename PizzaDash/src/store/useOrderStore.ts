@@ -71,8 +71,11 @@ export const useOrderStore = create(
         const selectedVehicle = customization.vehicles.find(
           v => v.id === customization.selectedVehicle,
         );
-        const maxCapacity = selectedVehicle?.stats?.orderCapacity || 1;
-        return get().activeOrders.length < maxCapacity;
+        if (!selectedVehicle) return false;
+        
+        const vehicleStats = customization.getItemStats(selectedVehicle.id);
+        const maxCapacity = vehicleStats?.orderCapacity || 1;
+        return get().getActiveOrdersCount() < maxCapacity;
       },
 
       calculateOrderDistance: (order: Order, currentLocation: { latitude: number; longitude: number }) => {
@@ -87,7 +90,10 @@ export const useOrderStore = create(
         const selectedVehicle = customization.vehicles.find(
           v => v.id === customization.selectedVehicle,
         );
-        const maxRange = selectedVehicle?.stats?.deliveryRange || 1000;
+        if (!selectedVehicle) return false;
+
+        const vehicleStats = customization.getItemStats(selectedVehicle.id);
+        const maxRange = vehicleStats?.deliveryRange || 1000;
         return distance <= maxRange;
       },
 
@@ -99,9 +105,12 @@ export const useOrderStore = create(
         const selectedCharacter = customization.characters.find(
           c => c.id === customization.selectedCharacter,
         );
-        
-        const vehicleBonus = selectedVehicle?.stats?.earnings || 0;
-        const characterBonus = selectedCharacter?.stats?.earnings || 0;
+
+        const vehicleStats = selectedVehicle ? customization.getItemStats(selectedVehicle.id) : null;
+        const characterStats = selectedCharacter ? customization.getItemStats(selectedCharacter.id) : null;
+
+        const vehicleBonus = vehicleStats?.earnings || 0;
+        const characterBonus = characterStats?.earnings || 0;
         
         return 1 + (vehicleBonus + characterBonus) / 100;
       },

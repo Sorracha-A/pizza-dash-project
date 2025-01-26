@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useRef, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,30 +13,60 @@ import {useCurrencyStore} from '../store/useCurrencyStore';
 import {useExperienceStore} from '../store/useExperienceStore';
 import {Bar as ProgressBar} from 'react-native-progress';
 
-const CustomizationScreen = () => {
+const CustomizationScreen = ({navigation}: any) => {
   const [activeTab, setActiveTab] = useState<'vehicle' | 'character'>('vehicle');
+  const [devMenuTaps, setDevMenuTaps] = useState(0);
+  const devMenuTapTimeout = useRef<NodeJS.Timeout>();
   const {
     vehicles,
     characters,
     ownedItems,
+    itemUpgrades,
     selectedVehicle,
     selectedCharacter,
     purchaseItem,
+    upgradeItem,
     selectItem,
+    getItemStats,
   } = useCustomizationStore();
   const balance = useCurrencyStore(state => state.balance);
   const level = useExperienceStore(state => state.level);
 
-  const renderStats = (stats?: {
-    orderCapacity?: number;
-    earnings?: number;
-    deliveryRange?: number;
-  }) => {
+  useEffect(() => {
+    if (devMenuTaps === 5) {
+      // Reset taps immediately to prevent multiple navigations
+      setDevMenuTaps(0);
+      // Navigate in the next tick to avoid state updates during render
+      setTimeout(() => {
+        navigation.navigate('DevMenu');
+      }, 0);
+    }
+  }, [devMenuTaps, navigation]);
+
+  const handleDevMenuTap = useCallback(() => {
+    setDevMenuTaps(prev => {
+      const newCount = prev + 1;
+      
+      // Reset the count after 2 seconds of no taps
+      if (devMenuTapTimeout.current) {
+        clearTimeout(devMenuTapTimeout.current);
+      }
+      devMenuTapTimeout.current = setTimeout(() => {
+        setDevMenuTaps(0);
+      }, 2000);
+
+      return newCount;
+    });
+  }, []);
+
+  const renderStats = (item: any) => {
+    if (!item?.stats) return null;
+    const stats = getItemStats(item.id);
     if (!stats) return null;
 
     return (
       <View style={styles.statsContainer}>
-        {stats.orderCapacity && (
+        {stats.orderCapacity !== undefined && (
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
               <Icon name="shopping-bag" size={14} color="#757575" />
@@ -54,7 +84,7 @@ const CustomizationScreen = () => {
             <Text style={styles.statValue}>+{stats.earnings}%</Text>
           </View>
         )}
-        {stats.deliveryRange && (
+        {stats.deliveryRange !== undefined && (
           <View style={styles.statItem}>
             <View style={styles.statHeader}>
               <Icon name="map-marker" size={14} color="#757575" />
@@ -63,6 +93,58 @@ const CustomizationScreen = () => {
             <Text style={styles.statValue}>{stats.deliveryRange}m</Text>
           </View>
         )}
+      </View>
+    );
+  };
+
+  const renderUpgradeButton = (item: any) => {
+    if (!item?.id || !ownedItems.includes(item.id)) return null;
+
+    const currentUpgrade = (itemUpgrades?.[item.id] || 0);
+    if (currentUpgrade >= (item.maxUpgradeLevel || 0)) {
+      return (
+        <View style={styles.upgradeContainer}>
+          <Text style={styles.maxUpgradeText}>MAX LEVEL</Text>
+        </View>
+      );
+    }
+
+    const upgradeCost = item.upgradeCosts?.[currentUpgrade];
+    if (upgradeCost === undefined) return null;
+    
+    const canUpgrade = balance >= upgradeCost;
+
+    return (
+      <View style={styles.upgradeContainer}>
+        <Text style={styles.upgradeLevel}>
+          Level {currentUpgrade + 1}/{item.maxUpgradeLevel}
+        </Text>
+        <TouchableOpacity
+          style={[styles.upgradeButton, !canUpgrade && styles.disabledUpgradeButton]}
+          onPress={() => {
+            if (canUpgrade) {
+              Alert.alert(
+                'Upgrade Item',
+                `Do you want to upgrade ${item.name} for $${upgradeCost}?`,
+                [
+                  {text: 'Cancel', style: 'cancel'},
+                  {
+                    text: 'Upgrade',
+                    onPress: () => {
+                      if (upgradeItem(item.id)) {
+                        Alert.alert('Success', 'Item upgraded successfully!');
+                      }
+                    },
+                  },
+                ],
+              );
+            }
+          }}>
+          <Icon name="arrow-up" size={12} color={canUpgrade ? '#FFFFFF' : '#757575'} />
+          <Text style={[styles.upgradeButtonText, !canUpgrade && styles.disabledUpgradeText]}>
+            ${upgradeCost}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -111,20 +193,22 @@ const CustomizationScreen = () => {
             <Text style={styles.itemDescription}>{item.description}</Text>
           </View>
         </View>
-        {renderStats(item.stats)}
+        {renderStats(item)}
         <View style={styles.itemFooter}>
-          {!isOwned && (
+          {!isOwned ? (
             <>
               <Text style={styles.priceText}>${item.price}</Text>
               {item.unlockLevel && (
                 <Text style={styles.levelText}>Level {item.unlockLevel}</Text>
               )}
             </>
-          )}
-          {isOwned && (
-            <Text style={styles.ownedText}>
-              {isSelected ? 'SELECTED' : 'OWNED'}
-            </Text>
+          ) : (
+            <>
+              <Text style={styles.ownedText}>
+                {isSelected ? 'SELECTED' : 'OWNED'}
+              </Text>
+              {renderUpgradeButton(item)}
+            </>
           )}
         </View>
       </TouchableOpacity>
@@ -135,10 +219,12 @@ const CustomizationScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Customize</Text>
-        <View style={styles.balanceContainer}>
+        <TouchableOpacity
+          style={styles.balanceContainer}
+          onPress={handleDevMenuTap}>
           <Icon name="dollar" size={16} color="#FFD700" />
           <Text style={styles.balanceText}>{balance}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabs}>
@@ -202,20 +288,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#2C3E50',
   },
   balanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2C3E50',
+    backgroundColor: '#F8F9FA',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 15,
+    borderRadius: 20,
   },
   balanceText: {
-    marginLeft: 5,
+    marginLeft: 6,
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFD700',
+    fontWeight: '600',
+    color: '#2C3E50',
   },
   tabs: {
     flexDirection: 'row',
@@ -228,9 +315,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    marginHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: '#F5F5F5',
+    marginHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
   },
   activeTab: {
     backgroundColor: '#E8F5E9',
@@ -242,51 +329,50 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#4CAF50',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   itemList: {
     paddingHorizontal: 20,
   },
   itemCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   selectedCard: {
     borderColor: '#4CAF50',
-    borderWidth: 2,
+    backgroundColor: '#F1F8E9',
   },
   lockedCard: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
   itemInfo: {
-    marginLeft: 15,
+    marginLeft: 12,
     flex: 1,
   },
   itemName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 4,
   },
   itemDescription: {
     fontSize: 14,
     color: '#757575',
-    marginTop: 2,
   },
   statsContainer: {
-    marginTop: 15,
-    backgroundColor: '#F5F5F5',
-    padding: 10,
+    backgroundColor: '#F8F9FA',
     borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
   },
   statItem: {
     marginBottom: 8,
@@ -297,24 +383,23 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
+    marginLeft: 6,
     fontSize: 12,
     color: '#757575',
-    marginLeft: 6,
   },
   statValue: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#2C3E50',
   },
   itemFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 15,
   },
   priceText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#4CAF50',
   },
   levelText: {
@@ -323,7 +408,41 @@ const styles = StyleSheet.create({
   },
   ownedText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  upgradeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  upgradeLevel: {
+    fontSize: 14,
+    color: '#757575',
+    marginRight: 8,
+  },
+  upgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  disabledUpgradeButton: {
+    backgroundColor: '#E0E0E0',
+  },
+  upgradeButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  disabledUpgradeText: {
+    color: '#757575',
+  },
+  maxUpgradeText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#4CAF50',
   },
 });

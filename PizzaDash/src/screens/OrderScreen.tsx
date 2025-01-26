@@ -60,6 +60,8 @@ const OrderScreen: React.FC = () => {
   const selectedVehicle = useCustomizationStore(state =>
     state.vehicles.find(v => v.id === state.selectedVehicle),
   );
+  const getVehicleStats = useCustomizationStore(state => state.getItemStats);
+  const vehicleStats = selectedVehicle ? getVehicleStats(selectedVehicle.id) : null;
 
   const maxCustomerDistance = useGameSettingsStore(
     state => state.maxCustomerDistance,
@@ -83,8 +85,8 @@ const OrderScreen: React.FC = () => {
 
     if (!canAcceptMoreOrders()) {
       Alert.alert(
-        'Vehicle Full',
-        `Your ${selectedVehicle?.name} can only carry ${selectedVehicle?.stats?.orderCapacity} order(s) at a time.`,
+        'Maximum Orders Reached',
+        `Your ${selectedVehicle?.name} can only carry ${vehicleStats?.orderCapacity} order(s) at a time.`,
       );
       return;
     }

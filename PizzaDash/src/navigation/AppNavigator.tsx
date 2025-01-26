@@ -12,6 +12,7 @@ import OrderScreen from '../screens/OrderScreen';
 import OptionScreen from '../screens/OptionScreen';
 import PizzaMakingGame from '../screens/PizzaMakingGame';
 import CustomizationScreen from '../screens/CustomizationScreen';
+import {DevMenuScreen} from '../screens/DevMenuScreen';
 import CurrencyDisplay from '../components/CurrencyDisplay';
 
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -80,25 +81,37 @@ const TabNavigator = () => (
   </Tab.Navigator>
 );
 
-const AppNavigator = () => (
-  <NavigationContainer>
-    <Stack.Navigator
-      initialRouteName="Landing"
-      screenOptions={{headerShown: false}}>
-      <Stack.Screen name="Landing" component={LandingScreen} />
-      <Stack.Screen
-        name="Main"
-        component={TabNavigator}
-        options={{gestureEnabled: false}}
-      />
-      <Stack.Screen name="OptionScreen" component={OptionScreen} />
-      <Stack.Screen
-        name="PizzaMakingGame"
-        component={PizzaMakingGame}
-        options={{headerShown: true, gestureEnabled: false}}
-      />
-    </Stack.Navigator>
-  </NavigationContainer>
-);
+const AppNavigator = () => {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Landing"
+        screenOptions={{
+          headerShown: false,
+        }}>
+        <Stack.Screen name="Landing" component={LandingScreen} />
+        <Stack.Screen name="Main" component={TabNavigator} options={{gestureEnabled: false}}/>
+        <Stack.Screen name="OptionScreen" component={OptionScreen} />
+        <Stack.Screen
+          name="PizzaMakingGame"
+          component={PizzaMakingGame}
+          options={{headerShown: true, gestureEnabled: false}}
+        />
+        <Stack.Screen 
+          name="DevMenu" 
+          component={DevMenuScreen}
+          options={{
+            headerShown: true,
+            title: 'Developer Menu',
+            headerStyle: {
+              backgroundColor: '#1E1E1E',
+            },
+            headerTintColor: '#E0E0E0',
+          }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
 
 export default AppNavigator;
