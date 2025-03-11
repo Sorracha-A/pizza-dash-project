@@ -156,8 +156,8 @@ const MapScreen: React.FC = () => {
           const elements = response.data.elements;
           setRestaurants(elements);
         } catch (error) {
-          console.error('Error fetching restaurants:', error);
-          Alert.alert('Error', 'Could not fetch nearby restaurants.');
+          // console.error('Error fetching restaurants:', error);
+          // Alert.alert('Error', 'Could not fetch nearby restaurants.');
         } finally {
           setLoadingRestaurants(false);
         }
@@ -315,7 +315,7 @@ const MapScreen: React.FC = () => {
       setRouteCoords(routeCoords);
       setEstimatedTime(Math.ceil(route.duration / 60)); // Duration in minutes
     } catch (error) {
-      console.error('Error fetching route:', error);
+      // console.error('Error fetching route:', error);
       Alert.alert('Error', 'Could not get route.');
     } finally {
       setLoadingRoute(false);

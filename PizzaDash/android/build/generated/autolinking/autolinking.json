@@ -28,6 +28,31 @@
         }
       }
     },
+    "@react-native-clipboard/clipboard": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-clipboard/clipboard",
+      "name": "@react-native-clipboard/clipboard",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-clipboard/clipboard/RNCClipboard.podspec",
+          "version": "1.16.1",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": {
+          "sourceDir": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-clipboard/clipboard/android",
+          "packageImportPath": "import com.reactnativecommunity.clipboard.ClipboardPackage;",
+          "packageInstance": "new ClipboardPackage()",
+          "buildTypes": [],
+          "libraryName": "rnclipboard",
+          "componentDescriptors": [],
+          "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-clipboard/clipboard/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cxxModuleCMakeListsModuleName": null,
+          "cxxModuleCMakeListsPath": null,
+          "cxxModuleHeaderName": null,
+          "isPureCxxDependency": false
+        }
+      }
+    },
     "@react-native-community/geolocation": {
       "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/@react-native-community/geolocation",
       "name": "@react-native-community/geolocation",
@@ -114,6 +139,30 @@
             "RNGestureHandlerRootViewComponentDescriptor"
           ],
           "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cxxModuleCMakeListsModuleName": null,
+          "cxxModuleCMakeListsPath": null,
+          "cxxModuleHeaderName": null,
+          "isPureCxxDependency": false
+        }
+      }
+    },
+    "react-native-linear-gradient": {
+      "root": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-linear-gradient",
+      "name": "react-native-linear-gradient",
+      "platforms": {
+        "ios": {
+          "podspecPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-linear-gradient/BVLinearGradient.podspec",
+          "version": "2.8.3",
+          "configurations": [],
+          "scriptPhases": []
+        },
+        "android": {
+          "sourceDir": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-linear-gradient/android",
+          "packageImportPath": "import com.BV.LinearGradient.LinearGradientPackage;",
+          "packageInstance": "new LinearGradientPackage()",
+          "buildTypes": [],
+          "componentDescriptors": [],
+          "cmakeListsPath": "/Users/butus/Documents/rcencis/pizza-dash/PizzaDash/node_modules/react-native-linear-gradient/android/build/generated/source/codegen/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,

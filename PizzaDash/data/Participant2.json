@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-02-26T16:10:00.000Z",
+  "stepsSevendaysBeforeplaying": [7984, 8021, 8190, 4075, 4823, 6962, 7231],
+  "stepsLastSevenDaysWhilePlaying": [8045, 7450, 8210, 4950, 5180, 7202, 7250],
+  "totalStepsToday": 7250,
+  "level": 4,
+  "experience": 480,
+  "balance": 1083,
+  "distanceLeft": 3.1
+}
